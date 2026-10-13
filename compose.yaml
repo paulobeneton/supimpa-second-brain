@@ -1,0 +1,44 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${APP_PORT:-8080}:80"
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_KEY: ${APP_KEY:?Defina APP_KEY}
+      APP_URL: ${APP_URL:?Defina APP_URL}
+      ALLOW_REGISTRATION: "false"
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_DATABASE: second_brain
+      DB_USERNAME: second_brain
+      DB_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD}
+      SESSION_DRIVER: database
+      SESSION_SECURE_COOKIE: "true"
+      CACHE_STORE: database
+      LOG_CHANNEL: stderr
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - app-storage:/var/www/html/storage
+  db:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: second_brain
+      MARIADB_USER: second_brain
+      MARIADB_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Defina DB_ROOT_PASSWORD}
+    volumes:
+      - database:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+volumes:
+  database:
+  app-storage:

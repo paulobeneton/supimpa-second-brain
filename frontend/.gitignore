@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.local
+.vite/
+
+# helpers de verificação visual geram imagens localmente
+*.png

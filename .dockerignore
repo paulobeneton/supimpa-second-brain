@@ -1,0 +1,15 @@
+.git
+.tools
+**/node_modules
+**/vendor
+**/.env
+**/dist
+**/*.sqlite*
+**/storage/logs/*
+**/storage/framework/cache/*
+**/storage/framework/sessions/*
+**/storage/framework/views/*
+**/public/assets
+artifacts
+*.zip
+design_handoff_second_brain

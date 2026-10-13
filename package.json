@@ -1,0 +1,14 @@
+{
+  "name": "supimpa-second-brain",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "npm run build --prefix frontend && node tools/copy-build.mjs",
+    "dev": "node tools/dev.mjs",
+    "test": "npm test --prefix frontend",
+    "test:e2e": "node frontend/e2e.mjs",
+    "mcp": "node tools/mcp-stdio.mjs"
+  },
+  "dependencies": { "@modelcontextprotocol/sdk": "^1.0.0" }
+}

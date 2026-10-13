@@ -1,0 +1,1124 @@
+# Code Reference — Second Brain SUPIMPA
+
+Fonte completa do protótipo, para consulta linha a linha ao recriar o produto. Isto **não é código para copiar** (é um template proprietário do ambiente de design, não React/HTML puro) — é a referência mais precisa possível de estrutura, dados e comportamento.
+
+O arquivo original é `Second Brain SUPIMPA.dc.html`. Ele tem duas partes: um **template** (HTML com `{{ holes }}`, parecido com um template de string — cada `{{ x }}` é substituído por um valor calculado em JS) e uma **classe de lógica** (JavaScript puro, sem framework, que calcula esses valores e responde a cliques). Trate o template como o "JSX/HTML final desejado" e a classe como o "controller/state" por trás dele.
+
+## Convenções do template (para ler a seção abaixo)
+- `{{ nome }}` = valor dinâmico (string, número, ou objeto de estilo/handler).
+- `<sc-if value="{{ cond }}">...</sc-if>` = renderização condicional (equivalente a `{cond && (...)}`).
+- `<sc-for list="{{ lista }}" as="item">...</sc-for>` = loop (equivalente a `lista.map(item => (...))`), com `item.campo` disponível dentro.
+- `onClick="{{ handler }}"` = a função é calculada em JS e injetada.
+- Tudo é estilizado inline (sem classes CSS, exceto scrollbar e @keyframes no `<style>` do helmet).
+
+## Estrutura geral da tela
+```
+<div (fundo da página, gradiente radial claro)>
+  <div (cabeçalho de legenda "SUPIMPA Second Brain")>
+  <div (cena: janela desktop + celular Android, lado a lado)>
+    <div (JANELA DESKTOP 1060x770)>
+      <div (chrome: bolinhas de macOS + "Cofre pessoal" + badge "Sincronizado")>
+      <div (corpo: rail de ícones | lista do cofre | área principal)>
+        <!-- área principal alterna entre 5 views: Notas / Tarefas / Grafo / MCP / Ajustes -->
+    <div (CELULAR ANDROID 300x624, bezel + status bar + tela de Nova Nota)>
+```
+
+## 1. Template completo (HTML com holes)
+
+```html
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  body{margin:0;}
+  @keyframes sbpulse{0%,100%{box-shadow:0 0 0 0 rgba(22,163,74,.45)}50%{box-shadow:0 0 0 5px rgba(22,163,74,0)}}
+  @keyframes sbtoast{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes sbpop{from{opacity:0;transform:translateY(-6px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+  textarea,input,button{font-family:inherit;}
+  .sb-scroll::-webkit-scrollbar{width:9px;height:9px;}
+  .sb-scroll::-webkit-scrollbar-thumb{background:#dde3ea;border-radius:9px;border:2px solid transparent;background-clip:padding-box;}
+  .sb-scroll::-webkit-scrollbar-track{background:transparent;}
+</style>
+</helmet>
+
+<div style="min-height:100vh;width:100%;background:radial-gradient(ellipse 75% 55% at 50% -5%,#eef3f9 0%,#e7ecf2 55%,#e1e6ed 100%);font-family:'Inter',sans-serif;color:#334155;padding:34px 26px 56px;display:flex;flex-direction:column;align-items:center;gap:22px;overflow:auto;">
+
+  <!-- Caption -->
+  <div style="width:100%;max-width:1392px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-shrink:0;">
+    <div style="display:flex;align-items:center;gap:11px;">
+      <div style="width:34px;height:34px;border-radius:10px;background:{{ acc }};display:flex;align-items:center;justify-content:center;box-shadow:0 5px 14px -4px {{ acc }}88;">
+        <span style="font-family:'Material Symbols Rounded';font-size:21px;line-height:1;color:#fff;font-variation-settings:'FILL' 1,'wght' 500;">psychology</span>
+      </div>
+      <div style="line-height:1.1;">
+        <div style="font-family:'Sora',sans-serif;font-weight:800;font-size:16px;color:#0f172a;letter-spacing:-.01em;">SUPIMPA <span style="color:{{ acc }};">Second Brain</span></div>
+        <div style="font-size:11.5px;color:#94a3b8;font-weight:500;">Editor Markdown · formatação, prévia ao vivo e vínculos</div>
+      </div>
+    </div>
+    <div style="font-size:11.5px;color:#94a3b8;font-weight:500;display:flex;align-items:center;gap:7px;">
+      <span style="font-family:'Material Symbols Rounded';font-size:15px;color:#cbd5e1;">touch_app</span>
+      Selecione um texto e use a barra de formatação
+    </div>
+  </div>
+
+  <!-- Scene -->
+  <div style="display:flex;gap:30px;align-items:flex-start;justify-content:center;flex-shrink:0;">
+
+    <!-- ============ DESKTOP WINDOW ============ -->
+    <div style="width:1060px;height:770px;background:#fff;border-radius:16px;border:1px solid #e3e8ef;box-shadow:0 34px 80px -34px rgba(15,23,42,.4),0 10px 28px -14px rgba(15,23,42,.18);overflow:hidden;display:flex;flex-direction:column;flex-shrink:0;">
+      <!-- Chrome -->
+      <div style="height:46px;flex-shrink:0;background:#f8fafc;border-bottom:1px solid #eef2f6;display:flex;align-items:center;gap:14px;padding:0 16px;">
+        <div style="display:flex;gap:8px;flex-shrink:0;">
+          <div style="width:12px;height:12px;border-radius:50%;background:#ff5f57;"></div>
+          <div style="width:12px;height:12px;border-radius:50%;background:#febc2e;"></div>
+          <div style="width:12px;height:12px;border-radius:50%;background:#28c840;"></div>
+        </div>
+        <div style="flex:1;display:flex;justify-content:center;">
+          <div style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:#64748b;font-weight:500;">
+            <span style="font-family:'Material Symbols Rounded';font-size:15px;color:#94a3b8;font-variation-settings:'FILL' 1;">lock</span>
+            Cofre pessoal — Supimpa Second Brain
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:7px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:999px;padding:4px 10px;flex-shrink:0;">
+          <span style="width:7px;height:7px;border-radius:50%;background:#16a34a;animation:sbpulse 2.4s infinite;"></span>
+          <span style="font-size:11.5px;font-weight:600;color:#16a34a;">Sincronizado</span>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div style="flex:1;display:flex;min-height:0;">
+
+        <!-- Rail -->
+        <div style="width:64px;flex-shrink:0;background:#fff;border-right:1px solid #eef2f6;display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:5px;">
+          <div style="width:38px;height:38px;border-radius:11px;background:{{ acc }};display:flex;align-items:center;justify-content:center;margin-bottom:8px;box-shadow:0 5px 13px -4px {{ acc }}99;">
+            <span style="font-family:'Material Symbols Rounded';font-size:21px;color:#fff;font-variation-settings:'FILL' 1,'wght' 500;">psychology</span>
+          </div>
+          <sc-for list="{{ rail }}" as="r" hint-placeholder-count="4">
+            <button onClick="{{ r.onClick }}" style="width:44px;height:44px;border:none;border-radius:12px;background:{{ r.bg }};color:{{ r.color }};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;transition:background .15s;">
+              <span style="font-family:'Material Symbols Rounded';font-size:22px;line-height:1;font-variation-settings:'wght' 500;">{{ r.icon }}</span>
+              <span style="font-size:8.5px;font-weight:600;letter-spacing:.01em;">{{ r.label }}</span>
+            </button>
+          </sc-for>
+          <div style="flex:1;"></div>
+          <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#0055a1,#f05127);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;font-family:'Sora',sans-serif;">S</div>
+        </div>
+
+        <!-- Vault list -->
+        <div style="width:246px;flex-shrink:0;background:#fcfcfd;border-right:1px solid #eef2f6;display:flex;flex-direction:column;min-height:0;">
+          <div style="padding:13px 13px 9px;flex-shrink:0;">
+            <div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e8edf3;border-radius:9px;padding:7px 10px;">
+              <span style="font-family:'Material Symbols Rounded';font-size:17px;color:#94a3b8;">search</span>
+              <span style="font-size:12.5px;color:#94a3b8;">Buscar no cofre…</span>
+              <span style="margin-left:auto;font-size:10px;color:#cbd5e1;border:1px solid #e2e8f0;border-radius:5px;padding:1px 5px;font-weight:600;">⌘K</span>
+            </div>
+          </div>
+          <div class="sb-scroll" style="flex:1;overflow:auto;padding:2px 8px 14px;">
+
+            <!-- Inbox -->
+            <div style="margin-top:8px;">
+              <div style="display:flex;align-items:center;gap:6px;padding:5px 8px;color:#94a3b8;font-size:10.5px;font-weight:700;letter-spacing:.05em;">
+                <span style="font-family:'Material Symbols Rounded';font-size:15px;color:#f05127;font-variation-settings:'FILL' 1;">inbox</span>
+                INBOX
+                <span style="margin-left:auto;background:#fef4f0;color:#f05127;border-radius:6px;padding:0 6px;font-size:10px;font-weight:700;">{{ inboxCount }}</span>
+              </div>
+              <sc-for list="{{ inbox }}" as="n" hint-placeholder-count="2">
+                <button onClick="{{ n.onClick }}" style="position:relative;width:100%;text-align:left;border:none;background:{{ n.bg }};border-radius:8px;padding:7px 10px 7px 13px;display:flex;align-items:center;gap:9px;cursor:pointer;margin-bottom:1px;">
+                  <span style="position:absolute;left:2px;top:7px;bottom:7px;width:3px;border-radius:3px;background:{{ n.bar }};"></span>
+                  <span style="font-family:'Material Symbols Rounded';font-size:17px;color:#f05127;">bolt</span>
+                  <span style="font-size:12.5px;color:{{ n.color }};font-weight:{{ n.weight }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ n.title }}</span>
+                </button>
+              </sc-for>
+            </div>
+
+            <!-- Projetos -->
+            <div style="margin-top:14px;">
+              <div style="display:flex;align-items:center;gap:6px;padding:5px 8px;color:#94a3b8;font-size:10.5px;font-weight:700;letter-spacing:.05em;">
+                <span style="font-family:'Material Symbols Rounded';font-size:15px;color:#94a3b8;font-variation-settings:'FILL' 1;">folder</span>
+                PROJETOS
+              </div>
+              <sc-for list="{{ proj }}" as="n" hint-placeholder-count="2">
+                <button onClick="{{ n.onClick }}" style="position:relative;width:100%;text-align:left;border:none;background:{{ n.bg }};border-radius:8px;padding:7px 10px 7px 13px;display:flex;align-items:center;gap:9px;cursor:pointer;margin-bottom:1px;">
+                  <span style="position:absolute;left:2px;top:7px;bottom:7px;width:3px;border-radius:3px;background:{{ n.bar }};"></span>
+                  <span style="font-family:'Material Symbols Rounded';font-size:17px;color:#cbd5e1;">description</span>
+                  <span style="font-size:12.5px;color:{{ n.color }};font-weight:{{ n.weight }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ n.title }}</span>
+                </button>
+              </sc-for>
+            </div>
+
+            <!-- Sistema -->
+            <div style="margin-top:14px;">
+              <div style="display:flex;align-items:center;gap:6px;padding:5px 8px;color:#94a3b8;font-size:10.5px;font-weight:700;letter-spacing:.05em;">
+                <span style="font-family:'Material Symbols Rounded';font-size:15px;color:{{ acc }};font-variation-settings:'FILL' 1;">dataset</span>
+                SISTEMA
+              </div>
+              <sc-for list="{{ sis }}" as="n" hint-placeholder-count="3">
+                <button onClick="{{ n.onClick }}" style="position:relative;width:100%;text-align:left;border:none;background:{{ n.bg }};border-radius:8px;padding:7px 10px 7px 13px;display:flex;align-items:center;gap:9px;cursor:pointer;margin-bottom:1px;">
+                  <span style="position:absolute;left:2px;top:7px;bottom:7px;width:3px;border-radius:3px;background:{{ n.bar }};"></span>
+                  <span style="font-family:'Material Symbols Rounded';font-size:17px;color:#cbd5e1;">description</span>
+                  <span style="font-size:12.5px;color:{{ n.color }};font-weight:{{ n.weight }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ n.title }}</span>
+                </button>
+              </sc-for>
+            </div>
+
+            <!-- Diário -->
+            <div style="margin-top:14px;">
+              <div style="display:flex;align-items:center;gap:6px;padding:5px 8px;color:#94a3b8;font-size:10.5px;font-weight:700;letter-spacing:.05em;">
+                <span style="font-family:'Material Symbols Rounded';font-size:15px;color:#94a3b8;font-variation-settings:'FILL' 1;">calendar_month</span>
+                DIÁRIO
+              </div>
+              <sc-for list="{{ diario }}" as="n" hint-placeholder-count="1">
+                <button onClick="{{ n.onClick }}" style="position:relative;width:100%;text-align:left;border:none;background:{{ n.bg }};border-radius:8px;padding:7px 10px 7px 13px;display:flex;align-items:center;gap:9px;cursor:pointer;margin-bottom:1px;">
+                  <span style="position:absolute;left:2px;top:7px;bottom:7px;width:3px;border-radius:3px;background:{{ n.bar }};"></span>
+                  <span style="font-family:'Material Symbols Rounded';font-size:17px;color:#cbd5e1;">description</span>
+                  <span style="font-size:12.5px;color:{{ n.color }};font-weight:{{ n.weight }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ n.title }}</span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+          <div style="flex-shrink:0;border-top:1px solid #eef2f6;padding:9px 13px;">
+            <button onClick="{{ startNewNote }}" style="width:100%;display:flex;align-items:center;justify-content:center;gap:7px;background:{{ acc }};color:#fff;border:none;border-radius:9px;padding:8px;font-size:12.5px;font-weight:600;cursor:pointer;">
+              <span style="font-family:'Material Symbols Rounded';font-size:17px;">add</span>
+              Nova nota
+            </button>
+          </div>
+        </div>
+
+        <!-- MAIN -->
+        <div style="flex:1;min-width:0;display:flex;background:#fff;">
+
+          <!-- ===== NOTAS ===== -->
+          <sc-if value="{{ isNotas }}" hint-placeholder-val="{{ true }}">
+            <div style="flex:1;display:flex;min-width:0;">
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column;position:relative;">
+                <!-- breadcrumb -->
+                <div style="height:48px;flex-shrink:0;border-bottom:1px solid #eef2f6;display:flex;align-items:center;padding:0 16px 0 20px;gap:8px;">
+                  <span style="font-size:12.5px;color:#94a3b8;">{{ activeNote.folder }}</span>
+                  <span style="font-family:'Material Symbols Rounded';font-size:16px;color:#cbd5e1;">chevron_right</span>
+                  <span style="font-size:12.5px;color:#475569;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px;">{{ activeNote.title }}</span>
+                  <div style="flex:1;"></div>
+                  <sc-if value="{{ editable }}">
+                    <div style="display:flex;align-items:center;gap:3px;background:#f1f5f9;border-radius:8px;padding:3px;">
+                      <button onClick="{{ setEdit }}" style="display:flex;align-items:center;gap:4px;background:{{ editBg }};border:none;border-radius:6px;padding:4px 9px;font-size:11.5px;font-weight:600;color:{{ editColor }};cursor:pointer;box-shadow:{{ editShadow }};"><span style="font-family:'Material Symbols Rounded';font-size:15px;">edit</span>Editar</button>
+                      <button onClick="{{ setRead }}" style="display:flex;align-items:center;gap:4px;background:{{ readBg }};border:none;border-radius:6px;padding:4px 9px;font-size:11.5px;font-weight:600;color:{{ readColor }};cursor:pointer;box-shadow:{{ readShadow }};"><span style="font-family:'Material Symbols Rounded';font-size:15px;">visibility</span>Ler</button>
+                    </div>
+                  </sc-if>
+                  <button style="width:32px;height:32px;border:none;background:transparent;border-radius:8px;cursor:pointer;color:#94a3b8;display:flex;align-items:center;justify-content:center;"><span style="font-family:'Material Symbols Rounded';font-size:19px;">more_horiz</span></button>
+                </div>
+
+                <!-- ===== EDIT MODE ===== -->
+                <sc-if value="{{ isEdit }}">
+                  <div style="flex:1;display:flex;flex-direction:column;min-height:0;">
+                    <!-- title -->
+                    <div style="padding:18px 24px 0;flex-shrink:0;">
+                      <input value="{{ activeNote.title }}" onChange="{{ onTitle }}" placeholder="Título da nota…" style="width:100%;border:none;outline:none;font-family:'Sora',sans-serif;font-weight:800;font-size:24px;line-height:1.2;letter-spacing:-.02em;color:#0f172a;background:transparent;padding:0;" />
+                    </div>
+                    <!-- toolbar -->
+                    <div style="flex-shrink:0;display:flex;align-items:center;gap:2px;padding:11px 22px;margin-top:12px;border-top:1px solid #f1f5f9;border-bottom:1px solid #eef2f6;flex-wrap:wrap;">
+                      <button onClick="{{ fmtBold }}" title="Negrito" style="width:32px;height:30px;border:none;background:transparent;border-radius:7px;color:#475569;cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="background:#f1f5f9;"><span style="font-family:'Material Symbols Rounded';font-size:19px;">format_bold</span></button>
+                      <button onClick="{{ fmtItalic }}" title="Itálico" style="width:32px;height:30px;border:none;background:transparent;border-radius:7px;color:#475569;cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="background:#f1f5f9;"><span style="font-family:'Material Symbols Rounded';font-size:19px;">format_italic</span></button>
+                      <button onClick="{{ fmtCode }}" title="Código" style="width:32px;height:30px;border:none;background:transparent;border-radius:7px;color:#475569;cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="background:#f1f5f9;"><span style="font-family:'Material Symbols Rounded';font-size:19px;">code</span></button>
+                      <span style="width:1px;height:18px;background:#e8edf3;margin:0 6px;"></span>
+                      <button onClick="{{ fmtH2 }}" title="Título H2" style="height:30px;padding:0 9px;border:none;background:transparent;border-radius:7px;color:#475569;cursor:pointer;display:flex;align-items:center;font-family:'Sora',sans-serif;font-weight:700;font-size:12.5px;" style-hover="background:#f1f5f9;">H2</button>
+                      <button onClick="{{ fmtH3 }}" title="Título H3" style="height:30px;padding:0 9px;border:none;background:transparent;border-radius:7px;color:#475569;cursor:pointer;display:flex;align-items:center;font-family:'Sora',sans-serif;font-weight:700;font-size:11.5px;" style-hover="background:#f1f5f9;">H3</button>
+                      <span style="width:1px;height:18px;background:#e8edf3;margin:0 6px;"></span>
+                      <button onClick="{{ fmtList }}" title="Lista" style="width:32px;height:30px;border:none;background:transparent;border-radius:7px;color:#475569;cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="background:#f1f5f9;"><span style="font-family:'Material Symbols Rounded';font-size:19px;">format_list_bulleted</span></button>
+                      <button onClick="{{ fmtQuote }}" title="Citação" style="width:32px;height:30px;border:none;background:transparent;border-radius:7px;color:#475569;cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="background:#f1f5f9;"><span style="font-family:'Material Symbols Rounded';font-size:19px;">format_quote</span></button>
+                      <button onClick="{{ fmtLink }}" title="Link externo" style="width:32px;height:30px;border:none;background:transparent;border-radius:7px;color:#475569;cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="background:#f1f5f9;"><span style="font-family:'Material Symbols Rounded';font-size:19px;">link</span></button>
+                      <div style="flex:1;"></div>
+                      <button onClick="{{ openLink }}" style="display:flex;align-items:center;gap:6px;background:{{ accSoft }};color:{{ acc }};border:1px solid {{ accBd }};border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;"><span style="font-family:'Material Symbols Rounded';font-size:16px;font-variation-settings:'FILL' 1;">hub</span>Vincular nota</button>
+                    </div>
+                    <!-- split -->
+                    <div style="flex:1;display:flex;min-height:0;">
+                      <div style="flex:1;min-width:0;display:flex;flex-direction:column;border-right:1px solid #eef2f6;">
+                        <div style="flex-shrink:0;padding:9px 22px;font-size:10px;font-weight:700;letter-spacing:.06em;color:#b4bdc9;display:flex;align-items:center;gap:6px;"><span style="font-family:'Material Symbols Rounded';font-size:14px;">data_object</span>MARKDOWN</div>
+                        <textarea id="sb-md-source" ref="{{ taRef }}" value="{{ activeNote.md }}" onChange="{{ onBody }}" placeholder="Escreva em Markdown…  Selecione um trecho e use a barra acima." class="sb-scroll" style="flex:1;width:100%;border:none;outline:none;resize:none;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:13px;line-height:1.7;color:#334155;background:transparent;padding:4px 22px 28px;"></textarea>
+                      </div>
+                      <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:#fcfcfd;">
+                        <div style="flex-shrink:0;padding:9px 22px;font-size:10px;font-weight:700;letter-spacing:.06em;color:#b4bdc9;display:flex;align-items:center;gap:6px;"><span style="font-family:'Material Symbols Rounded';font-size:14px;">visibility</span>PRÉVIA AO VIVO</div>
+                        <div class="sb-scroll" style="flex:1;overflow:auto;padding:4px 24px 40px;">{{ preview }}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- link picker popover -->
+                  <sc-if value="{{ linkOpen }}">
+                    <div style="position:absolute;top:140px;right:24px;width:312px;background:#fff;border:1px solid #e3e8ef;border-radius:13px;box-shadow:0 24px 50px -18px rgba(15,23,42,.34);padding:12px;z-index:30;animation:sbpop .14s ease;">
+                      <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px;">
+                        <span style="font-family:'Material Symbols Rounded';font-size:17px;color:{{ acc }};font-variation-settings:'FILL' 1;">hub</span>
+                        <span style="font-size:13px;font-weight:700;color:#0f172a;flex:1;">Vincular nota</span>
+                        <button onClick="{{ closeLink }}" style="width:26px;height:26px;border:none;background:#f1f5f9;border-radius:7px;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center;"><span style="font-family:'Material Symbols Rounded';font-size:16px;">close</span></button>
+                      </div>
+                      <div style="display:flex;align-items:center;gap:8px;background:#f8fafc;border:1px solid #e8edf3;border-radius:9px;padding:8px 11px;margin-bottom:9px;">
+                        <span style="font-family:'Material Symbols Rounded';font-size:17px;color:#94a3b8;">search</span>
+                        <input value="{{ linkQuery }}" onChange="{{ onLinkQuery }}" placeholder="Buscar nota no cofre…" style="flex:1;border:none;outline:none;background:transparent;font-size:13px;color:#0f172a;" />
+                      </div>
+                      <div class="sb-scroll" style="max-height:230px;overflow:auto;display:flex;flex-direction:column;gap:2px;">
+                        <sc-for list="{{ linkResults }}" as="r" hint-placeholder-count="4">
+                          <button onClick="{{ r.onClick }}" style="display:flex;align-items:center;gap:9px;background:transparent;border:none;border-radius:8px;padding:8px 9px;cursor:pointer;text-align:left;width:100%;" style-hover="background:#f5f8fb;">
+                            <span style="font-family:'Material Symbols Rounded';font-size:17px;color:{{ acc }};flex-shrink:0;">description</span>
+                            <span style="flex:1;min-width:0;"><span style="display:block;font-size:12.5px;font-weight:600;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ r.title }}</span><span style="display:block;font-size:10.5px;color:#94a3b8;">{{ r.folder }}</span></span>
+                            <span style="font-family:'Material Symbols Rounded';font-size:15px;color:#cbd5e1;">add_link</span>
+                          </button>
+                        </sc-for>
+                        <sc-if value="{{ linkCreateShow }}">
+                          <button onClick="{{ linkCreateClick }}" style="display:flex;align-items:center;gap:9px;background:transparent;border:none;border-radius:8px;padding:8px 9px;cursor:pointer;text-align:left;width:100%;border-top:1px solid #f1f5f9;" style-hover="background:#fef4f0;">
+                            <span style="font-family:'Material Symbols Rounded';font-size:17px;color:#f05127;flex-shrink:0;">note_add</span>
+                            <span style="flex:1;min-width:0;font-size:12.5px;color:#475569;">Criar e vincular <strong style="color:#0f172a;">“{{ linkQuery }}”</strong></span>
+                          </button>
+                        </sc-if>
+                        <sc-if value="{{ noLinkResults }}">
+                          <div style="text-align:center;padding:16px 8px;color:#cbd5e1;font-size:12px;">Nenhuma nota encontrada</div>
+                        </sc-if>
+                      </div>
+                    </div>
+                  </sc-if>
+                </sc-if>
+
+                <!-- ===== READ MODE ===== -->
+                <sc-if value="{{ isRead }}">
+                  <div class="sb-scroll" style="flex:1;overflow:auto;">
+                    <div style="max-width:720px;margin:0 auto;padding:38px 44px 64px;">
+                      <h1 style="font-family:'Sora',sans-serif;font-weight:800;font-size:30px;line-height:1.18;letter-spacing:-.02em;color:#0f172a;margin:0 0 14px;">{{ activeNote.title }}</h1>
+                      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin-bottom:8px;">
+                        <span style="display:inline-flex;align-items:center;gap:4px;background:{{ accSoft }};color:{{ acc }};border:1px solid {{ accBd }};border-radius:7px;padding:3px 8px;font-size:11.5px;font-weight:600;"><span style="font-family:'Material Symbols Rounded';font-size:14px;font-variation-settings:'FILL' 1;">folder</span>{{ activeNote.folder }}</span>
+                        <sc-for list="{{ activeTags }}" as="t" hint-placeholder-count="3">
+                          <span style="display:inline-flex;align-items:center;gap:3px;background:#f1f5f9;color:#64748b;border-radius:7px;padding:3px 8px;font-size:11.5px;font-weight:600;"><span style="font-family:'Material Symbols Rounded';font-size:13px;">tag</span>{{ t }}</span>
+                        </sc-for>
+                        <span style="display:inline-flex;align-items:center;gap:4px;color:#94a3b8;font-size:11.5px;margin-left:2px;"><span style="font-family:'Material Symbols Rounded';font-size:14px;">schedule</span>{{ activeNote.updated }}</span>
+                      </div>
+                      <sc-if value="{{ hasReadBy }}">
+                        <div style="display:inline-flex;align-items:center;gap:6px;background:{{ accSoft }};border:1px solid {{ accBd }};border-radius:8px;padding:5px 10px;font-size:11.5px;font-weight:600;color:{{ acc }};margin-bottom:22px;white-space:nowrap;">
+                          <span style="font-family:'Material Symbols Rounded';font-size:15px;font-variation-settings:'FILL' 1;">auto_awesome</span>
+                          Lido pelo MCP · {{ activeNote.readBy }}
+                        </div>
+                      </sc-if>
+                      <div style="height:1px;background:#eef2f6;margin:18px 0 24px;"></div>
+                      {{ preview }}
+                    </div>
+                  </div>
+                </sc-if>
+              </div>
+
+              <!-- Connections panel (read mode) -->
+              <sc-if value="{{ isRead }}">
+                <aside class="sb-scroll" style="width:252px;flex-shrink:0;border-left:1px solid #eef2f6;background:#fcfcfd;overflow:auto;padding:20px 16px;">
+                  <div style="font-size:11px;font-weight:700;letter-spacing:.05em;color:#94a3b8;margin-bottom:12px;display:flex;align-items:center;gap:6px;"><span style="font-family:'Material Symbols Rounded';font-size:15px;">hub</span>CONEXÕES</div>
+
+                  <sc-if value="{{ hasLinks }}">
+                    <div style="font-size:11.5px;font-weight:600;color:#64748b;margin-bottom:7px;">Links nesta nota</div>
+                    <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:18px;">
+                      <sc-for list="{{ activeLinks }}" as="l" hint-placeholder-count="2">
+                        <button onClick="{{ l.onClick }}" style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e8edf3;border-radius:9px;padding:8px 10px;cursor:pointer;text-align:left;width:100%;">
+                          <span style="font-family:'Material Symbols Rounded';font-size:16px;color:{{ acc }};">north_east</span>
+                          <span style="font-size:12.5px;color:#334155;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ l.title }}</span>
+                        </button>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+
+                  <sc-if value="{{ hasBacklinks }}">
+                    <div style="font-size:11.5px;font-weight:600;color:#64748b;margin-bottom:7px;">Notas que apontam pra cá</div>
+                    <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:18px;">
+                      <sc-for list="{{ activeBacklinks }}" as="l" hint-placeholder-count="2">
+                        <button onClick="{{ l.onClick }}" style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e8edf3;border-radius:9px;padding:8px 10px;cursor:pointer;text-align:left;width:100%;">
+                          <span style="font-family:'Material Symbols Rounded';font-size:16px;color:#94a3b8;">south_west</span>
+                          <span style="font-size:12.5px;color:#334155;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ l.title }}</span>
+                        </button>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+
+                  <sc-if value="{{ hasReadBy }}">
+                    <div style="background:{{ accSoft }};border:1px solid {{ accBd }};border-radius:11px;padding:13px;">
+                      <div style="display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:{{ acc }};margin-bottom:4px;"><span style="font-family:'Material Symbols Rounded';font-size:15px;font-variation-settings:'FILL' 1;">cable</span>Acesso via MCP</div>
+                      <div style="font-size:12px;line-height:1.5;color:#475569;">{{ activeNote.readBy }} carregou esta nota como contexto.</div>
+                    </div>
+                  </sc-if>
+
+                  <sc-if value="{{ noConnections }}">
+                    <div style="text-align:center;padding:24px 8px;color:#cbd5e1;">
+                      <span style="font-family:'Material Symbols Rounded';font-size:30px;font-variation-settings:'FILL' 1;">link_off</span>
+                      <div style="font-size:12px;margin-top:6px;color:#94a3b8;line-height:1.5;">Sem conexões ainda.<br>Use <span style="font-family:ui-monospace,monospace;background:#f1f5f9;padding:0 4px;border-radius:4px;">[[ ]]</span> para vincular.</div>
+                    </div>
+                  </sc-if>
+                </aside>
+              </sc-if>
+            </div>
+          </sc-if>
+
+          <!-- ===== TAREFAS ===== -->
+          <sc-if value="{{ isTarefas }}">
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:#fcfcfd;">
+              <!-- header -->
+              <div style="height:48px;flex-shrink:0;border-bottom:1px solid #eef2f6;display:flex;align-items:center;padding:0 16px 0 20px;gap:12px;">
+                <span style="font-family:'Sora',sans-serif;font-weight:700;font-size:15px;color:#0f172a;">Tarefas &amp; Projetos</span>
+                <div style="display:flex;align-items:center;gap:3px;background:#f1f5f9;border-radius:8px;padding:3px;">
+                  <button onClick="{{ setQuadro }}" style="display:flex;align-items:center;gap:5px;background:{{ quadroBg }};border:none;border-radius:6px;padding:4px 11px;font-size:11.5px;font-weight:600;color:{{ quadroColor }};cursor:pointer;box-shadow:{{ quadroShadow }};"><span style="font-family:'Material Symbols Rounded';font-size:15px;">view_kanban</span>Quadro</button>
+                  <button onClick="{{ setProjetos }}" style="display:flex;align-items:center;gap:5px;background:{{ projetosBg }};border:none;border-radius:6px;padding:4px 11px;font-size:11.5px;font-weight:600;color:{{ projetosColor }};cursor:pointer;box-shadow:{{ projetosShadow }};"><span style="font-family:'Material Symbols Rounded';font-size:15px;">folder_open</span>Projetos</button>
+                </div>
+                <div style="flex:1;"></div>
+                <button onClick="{{ addTask }}" style="display:flex;align-items:center;gap:6px;background:{{ acc }};color:#fff;border:none;border-radius:9px;padding:7px 13px;font-size:12px;font-weight:600;cursor:pointer;"><span style="font-family:'Material Symbols Rounded';font-size:16px;">add</span>Nova tarefa</button>
+              </div>
+
+              <!-- summary chips -->
+              <div style="flex-shrink:0;display:flex;gap:10px;padding:15px 18px 6px;">
+                <div style="flex:1;display:flex;align-items:center;gap:11px;background:#fff;border:1px solid #fde0d8;border-radius:12px;padding:12px 14px;">
+                  <span style="width:34px;height:34px;border-radius:9px;background:#fef2f2;display:flex;align-items:center;justify-content:center;color:#dc2626;flex-shrink:0;"><span style="font-family:'Material Symbols Rounded';font-size:19px;font-variation-settings:'FILL' 1;">error</span></span>
+                  <div><div style="font-family:'Sora',sans-serif;font-weight:800;font-size:20px;color:#0f172a;line-height:1;">{{ summary.atrasadas }}</div><div style="font-size:11px;color:#94a3b8;font-weight:600;margin-top:2px;">Atrasadas</div></div>
+                </div>
+                <div style="flex:1;display:flex;align-items:center;gap:11px;background:#fff;border:1px solid #fed7aa;border-radius:12px;padding:12px 14px;">
+                  <span style="width:34px;height:34px;border-radius:9px;background:#fff7ed;display:flex;align-items:center;justify-content:center;color:#ea580c;flex-shrink:0;"><span style="font-family:'Material Symbols Rounded';font-size:19px;font-variation-settings:'FILL' 1;">today</span></span>
+                  <div><div style="font-family:'Sora',sans-serif;font-weight:800;font-size:20px;color:#0f172a;line-height:1;">{{ summary.hoje }}</div><div style="font-size:11px;color:#94a3b8;font-weight:600;margin-top:2px;">Para hoje</div></div>
+                </div>
+                <div style="flex:1;display:flex;align-items:center;gap:11px;background:#fff;border:1px solid #e8edf3;border-radius:12px;padding:12px 14px;">
+                  <span style="width:34px;height:34px;border-radius:9px;background:{{ accSoft }};display:flex;align-items:center;justify-content:center;color:{{ acc }};flex-shrink:0;"><span style="font-family:'Material Symbols Rounded';font-size:19px;">date_range</span></span>
+                  <div><div style="font-family:'Sora',sans-serif;font-weight:800;font-size:20px;color:#0f172a;line-height:1;">{{ summary.semana }}</div><div style="font-size:11px;color:#94a3b8;font-weight:600;margin-top:2px;">Esta semana</div></div>
+                </div>
+                <div style="flex:1;display:flex;align-items:center;gap:11px;background:#fff;border:1px solid #bbf7d0;border-radius:12px;padding:12px 14px;">
+                  <span style="width:34px;height:34px;border-radius:9px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;color:#16a34a;flex-shrink:0;"><span style="font-family:'Material Symbols Rounded';font-size:19px;font-variation-settings:'FILL' 1;">task_alt</span></span>
+                  <div><div style="font-family:'Sora',sans-serif;font-weight:800;font-size:20px;color:#0f172a;line-height:1;">{{ summary.entregues }}</div><div style="font-size:11px;color:#94a3b8;font-weight:600;margin-top:2px;">Entregues</div></div>
+                </div>
+              </div>
+
+              <!-- QUADRO -->
+              <sc-if value="{{ isQuadro }}">
+                <div class="sb-scroll" style="flex:1;overflow:auto;padding:12px 18px 18px;">
+                  <div style="display:flex;gap:14px;height:100%;min-width:min-content;">
+                    <sc-for list="{{ columns }}" as="col" hint-placeholder-count="4">
+                      <div style="width:242px;flex-shrink:0;display:flex;flex-direction:column;min-height:0;">
+                        <div style="display:flex;align-items:center;gap:8px;padding:4px 4px 10px;flex-shrink:0;">
+                          <span style="width:8px;height:8px;border-radius:50%;background:{{ col.color }};"></span>
+                          <span style="font-size:12.5px;font-weight:700;color:#334155;">{{ col.label }}</span>
+                          <span style="font-size:11px;font-weight:700;color:#94a3b8;background:#eef2f6;border-radius:6px;padding:1px 7px;">{{ col.count }}</span>
+                        </div>
+                        <div class="sb-scroll" style="flex:1;overflow:auto;display:flex;flex-direction:column;gap:9px;padding:2px;">
+                          <sc-for list="{{ col.tasks }}" as="t" hint-placeholder-count="2">
+                            <div style="background:#fff;border:1px solid #e8edf3;border-radius:12px;padding:11px 12px;display:flex;flex-direction:column;gap:9px;box-shadow:0 1px 2px rgba(15,23,42,.04);">
+                              <div style="display:flex;align-items:center;gap:7px;">
+                                <span style="width:7px;height:7px;border-radius:50%;background:{{ t.projColor }};flex-shrink:0;"></span>
+                                <span style="flex:1;min-width:0;font-size:10.5px;font-weight:700;letter-spacing:.02em;color:#94a3b8;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ t.projName }}</span>
+                                <button onClick="{{ t.onToggle }}" title="Concluir" style="width:20px;height:20px;flex-shrink:0;border-radius:50%;border:2px solid {{ t.checkBorder }};background:{{ t.checkBg }};cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;">
+                                  <sc-if value="{{ t.done }}"><span style="font-family:'Material Symbols Rounded';font-size:13px;color:#fff;font-variation-settings:'wght' 700;">check</span></sc-if>
+                                </button>
+                              </div>
+                              <div style="font-size:13px;line-height:1.4;font-weight:500;color:{{ t.titleColor }};text-decoration:{{ t.titleDeco }};">{{ t.title }}</div>
+                              <div style="display:flex;align-items:center;gap:8px;">
+                                <span style="display:inline-flex;align-items:center;gap:4px;background:{{ t.dueBg }};color:{{ t.dueColor }};border:1px solid {{ t.dueBd }};border-radius:7px;padding:2px 7px;font-size:10.5px;font-weight:700;"><span style="font-family:'Material Symbols Rounded';font-size:12px;">{{ t.dueIcon }}</span>{{ t.dueLabel }}</span>
+                                <sc-if value="{{ t.subsShow }}">
+                                  <span style="display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:600;color:#94a3b8;"><span style="font-family:'Material Symbols Rounded';font-size:13px;">checklist</span>{{ t.subsText }}</span>
+                                </sc-if>
+                                <div style="flex:1;"></div>
+                                <sc-if value="{{ t.canAdvance }}">
+                                  <button onClick="{{ t.onAdvance }}" title="{{ t.advanceTitle }}" style="width:26px;height:26px;border:none;background:#f4f6fa;border-radius:8px;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;" style-hover="background:#e8edf3;"><span style="font-family:'Material Symbols Rounded';font-size:16px;">arrow_forward</span></button>
+                                </sc-if>
+                              </div>
+                            </div>
+                          </sc-for>
+                          <sc-if value="{{ col.empty }}">
+                            <div style="border:1.5px dashed #e2e8f0;border-radius:12px;padding:18px 10px;text-align:center;color:#cbd5e1;font-size:11.5px;font-weight:500;">Nada aqui</div>
+                          </sc-if>
+                        </div>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-if>
+
+              <!-- PROJETOS -->
+              <sc-if value="{{ isProjetos }}">
+                <div class="sb-scroll" style="flex:1;overflow:auto;padding:12px 22px 24px;">
+                  <div style="display:flex;flex-direction:column;gap:12px;max-width:720px;margin:0 auto;">
+                    <sc-for list="{{ projects }}" as="p" hint-placeholder-count="4">
+                      <div style="background:#fff;border:1px solid #e8edf3;border-radius:14px;padding:16px 18px;">
+                        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+                          <span style="width:40px;height:40px;border-radius:11px;background:{{ p.soft }};display:flex;align-items:center;justify-content:center;color:{{ p.color }};flex-shrink:0;"><span style="font-family:'Material Symbols Rounded';font-size:21px;font-variation-settings:'FILL' 1;">{{ p.icon }}</span></span>
+                          <div style="flex:1;min-width:0;">
+                            <div style="font-size:14.5px;font-weight:700;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ p.name }}</div>
+                            <div style="font-size:11.5px;color:#94a3b8;">{{ p.client }}</div>
+                          </div>
+                          <span style="display:inline-flex;align-items:center;gap:5px;background:{{ p.deadlineBg }};color:{{ p.deadlineColor }};border:1px solid {{ p.deadlineBd }};border-radius:8px;padding:4px 10px;font-size:11.5px;font-weight:700;flex-shrink:0;"><span style="font-family:'Material Symbols Rounded';font-size:14px;">{{ p.deadlineIcon }}</span>{{ p.deadline }}</span>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:11px;margin-bottom:12px;">
+                          <div style="flex:1;height:8px;border-radius:8px;background:#eef2f6;overflow:hidden;">
+                            <div style="width:{{ p.pctWidth }};height:100%;background:{{ p.color }};border-radius:8px;"></div>
+                          </div>
+                          <span style="font-size:12px;font-weight:700;color:#334155;min-width:34px;text-align:right;">{{ p.pctText }}</span>
+                        </div>
+                        <div style="display:flex;gap:16px;">
+                          <span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#64748b;"><span style="width:8px;height:8px;border-radius:50%;background:#cbd5e1;"></span>{{ p.todo }} a fazer</span>
+                          <span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#64748b;"><span style="width:8px;height:8px;border-radius:50%;background:{{ acc }};"></span>{{ p.doing }} em andamento</span>
+                          <span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#64748b;"><span style="width:8px;height:8px;border-radius:50%;background:#16a34a;"></span>{{ p.done }} entregues</span>
+                        </div>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+
+          <!-- ===== GRAFO ===== -->
+          <sc-if value="{{ isGrafo }}">
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:#fcfcfd;">
+              <div style="height:48px;flex-shrink:0;border-bottom:1px solid #eef2f6;display:flex;align-items:center;padding:0 20px;gap:10px;">
+                <span style="font-family:'Sora',sans-serif;font-weight:700;font-size:15px;color:#0f172a;">Grafo do conhecimento</span>
+                <span style="font-size:12px;color:#94a3b8;">· como suas notas se conectam</span>
+                <div style="flex:1;"></div>
+                <div style="display:flex;gap:6px;">
+                  <span style="display:inline-flex;align-items:center;gap:5px;background:{{ accSoft }};color:{{ acc }};border:1px solid {{ accBd }};border-radius:999px;padding:3px 10px;font-size:11px;font-weight:600;"><span style="width:7px;height:7px;border-radius:50%;background:{{ acc }};"></span>Sistema</span>
+                  <span style="display:inline-flex;align-items:center;gap:5px;background:#fef4f0;color:#f05127;border:1px solid #fde0d8;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:600;"><span style="width:7px;height:7px;border-radius:50%;background:#f05127;"></span>Projetos</span>
+                  <span style="display:inline-flex;align-items:center;gap:5px;background:#f3effc;color:#6d4ad4;border:1px solid #e2d8f7;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:600;"><span style="width:7px;height:7px;border-radius:50%;background:#6d4ad4;"></span>Diário</span>
+                </div>
+              </div>
+              <div style="flex:1;display:flex;align-items:center;justify-content:center;background-image:radial-gradient(#e6ebf1 1.1px,transparent 1.1px);background-size:22px 22px;overflow:hidden;">
+                <div style="position:relative;width:640px;height:470px;">
+                  <svg style="position:absolute;inset:0;width:640px;height:470px;" viewBox="0 0 640 470">
+                    <line x1="320" y1="205" x2="320" y2="70" stroke="#cdd6e0" stroke-width="1.5"></line>
+                    <line x1="320" y1="205" x2="120" y2="120" stroke="#cdd6e0" stroke-width="1.5"></line>
+                    <line x1="320" y1="205" x2="520" y2="120" stroke="#cdd6e0" stroke-width="1.5"></line>
+                    <line x1="320" y1="205" x2="115" y2="310" stroke="#cdd6e0" stroke-width="1.5"></line>
+                    <line x1="320" y1="205" x2="300" y2="395" stroke="#cdd6e0" stroke-width="1.5"></line>
+                    <line x1="320" y1="205" x2="525" y2="305" stroke="#cdd6e0" stroke-width="1.5"></line>
+                    <line x1="320" y1="70" x2="120" y2="120" stroke="#e2e8f0" stroke-width="1.5"></line>
+                    <line x1="320" y1="70" x2="520" y2="120" stroke="#e2e8f0" stroke-width="1.5"></line>
+                    <line x1="320" y1="70" x2="115" y2="310" stroke="#e2e8f0" stroke-width="1.5"></line>
+                    <line x1="320" y1="70" x2="300" y2="395" stroke="#e2e8f0" stroke-width="1.5"></line>
+                  </svg>
+                  <div style="position:absolute;left:270px;top:167px;width:100px;display:flex;flex-direction:column;align-items:center;">
+                    <div style="width:76px;height:76px;border-radius:50%;background:linear-gradient(135deg,{{ acc }},#0a3d73);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;box-shadow:0 12px 26px -8px {{ acc }}aa;">
+                      <span style="font-family:'Material Symbols Rounded';font-size:24px;font-variation-settings:'FILL' 1;">hub</span>
+                      <span style="font-size:9.5px;font-weight:700;margin-top:1px;">Sistema</span>
+                    </div>
+                  </div>
+                  <button onClick="{{ nodeClick.stack }}" style="position:absolute;left:270px;top:47px;width:100px;background:transparent;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;">
+                    <span style="width:46px;height:46px;border-radius:50%;background:{{ accSoft }};border:2px solid {{ acc }};display:flex;align-items:center;justify-content:center;color:{{ acc }};"><span style="font-family:'Material Symbols Rounded';font-size:21px;font-variation-settings:'FILL' 1;">tune</span></span>
+                    <span style="font-size:11px;font-weight:600;color:#334155;">Stack padrão</span>
+                  </button>
+                  <button onClick="{{ nodeClick.design }}" style="position:absolute;left:70px;top:97px;width:100px;background:transparent;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;">
+                    <span style="width:46px;height:46px;border-radius:50%;background:{{ accSoft }};border:2px solid {{ accBd }};display:flex;align-items:center;justify-content:center;color:{{ acc }};"><span style="font-family:'Material Symbols Rounded';font-size:21px;">palette</span></span>
+                    <span style="font-size:11px;font-weight:600;color:#334155;">Sistema de Design</span>
+                  </button>
+                  <button onClick="{{ nodeClick.prompts }}" style="position:absolute;left:470px;top:97px;width:100px;background:transparent;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;">
+                    <span style="width:46px;height:46px;border-radius:50%;background:{{ accSoft }};border:2px solid {{ accBd }};display:flex;align-items:center;justify-content:center;color:{{ acc }};"><span style="font-family:'Material Symbols Rounded';font-size:21px;">terminal</span></span>
+                    <span style="font-size:11px;font-weight:600;color:#334155;">Prompts Claude</span>
+                  </button>
+                  <button onClick="{{ nodeClick.clientex }}" style="position:absolute;left:65px;top:287px;width:100px;background:transparent;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;">
+                    <span style="width:46px;height:46px;border-radius:50%;background:#fef4f0;border:2px solid #fde0d8;display:flex;align-items:center;justify-content:center;color:#f05127;"><span style="font-family:'Material Symbols Rounded';font-size:21px;">language</span></span>
+                    <span style="font-size:11px;font-weight:600;color:#334155;">Cliente X — Site</span>
+                  </button>
+                  <button onClick="{{ nodeClick.briefing }}" style="position:absolute;left:250px;top:372px;width:100px;background:transparent;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;">
+                    <span style="width:46px;height:46px;border-radius:50%;background:#fef4f0;border:2px solid #fde0d8;display:flex;align-items:center;justify-content:center;color:#f05127;"><span style="font-family:'Material Symbols Rounded';font-size:21px;">coffee</span></span>
+                    <span style="font-size:11px;font-weight:600;color:#334155;">Briefing Café</span>
+                  </button>
+                  <button onClick="{{ nodeClick.reuniao }}" style="position:absolute;left:475px;top:282px;width:100px;background:transparent;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;">
+                    <span style="width:46px;height:46px;border-radius:50%;background:#f3effc;border:2px solid #e2d8f7;display:flex;align-items:center;justify-content:center;color:#6d4ad4;"><span style="font-family:'Material Symbols Rounded';font-size:21px;">event</span></span>
+                    <span style="font-size:11px;font-weight:600;color:#334155;">Reunião 28/06</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- ===== MCP ===== -->
+          <sc-if value="{{ isMcp }}">
+            <div class="sb-scroll" style="flex:1;min-width:0;overflow:auto;background:#fcfcfd;">
+              <div style="max-width:760px;margin:0 auto;padding:30px 32px 56px;">
+                <h1 style="font-family:'Sora',sans-serif;font-weight:800;font-size:25px;color:#0f172a;letter-spacing:-.02em;margin:0 0 5px;">Conexões MCP</h1>
+                <p style="font-size:14px;color:#64748b;margin:0 0 22px;line-height:1.6;">Suas CLIs e agentes leem e escrevem direto no cofre. <strong style="color:#334155;font-weight:600;">{{ connectedCount }} de 5 conectados.</strong></p>
+                <div style="display:flex;align-items:center;gap:13px;background:#0f172a;border-radius:13px;padding:15px 17px;margin-bottom:14px;">
+                  <span style="width:38px;height:38px;border-radius:10px;background:#1e293b;display:flex;align-items:center;justify-content:center;color:#7dd3fc;flex-shrink:0;"><span style="font-family:'Material Symbols Rounded';font-size:20px;">dns</span></span>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:11px;color:#94a3b8;font-weight:600;margin-bottom:2px;">Servidor MCP</div>
+                    <div style="font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:13px;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">mcp://second-brain.supimpa.local</div>
+                  </div>
+                  <span style="display:inline-flex;align-items:center;gap:5px;background:rgba(34,197,94,.15);color:#4ade80;border-radius:999px;padding:4px 10px;font-size:11px;font-weight:600;flex-shrink:0;"><span style="width:6px;height:6px;border-radius:50%;background:#4ade80;"></span>online</span>
+                  <button style="width:34px;height:34px;border-radius:9px;border:none;background:#1e293b;color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><span style="font-family:'Material Symbols Rounded';font-size:18px;">content_copy</span></button>
+                </div>
+                <div style="display:flex;align-items:stretch;gap:10px;margin-bottom:26px;">
+                  <div style="flex:1;background:#fff;border:1px solid #e8edf3;border-radius:11px;padding:13px;text-align:center;">
+                    <span style="font-family:'Material Symbols Rounded';font-size:22px;color:#64748b;">terminal</span>
+                    <div style="font-size:12px;font-weight:600;color:#334155;margin-top:3px;">CLI / Agente</div>
+                    <div style="font-size:10.5px;color:#94a3b8;">Claude, Codex…</div>
+                  </div>
+                  <div style="display:flex;align-items:center;color:#cbd5e1;"><span style="font-family:'Material Symbols Rounded';font-size:22px;">sync_alt</span></div>
+                  <div style="flex:1;background:{{ accSoft }};border:1px solid {{ accBd }};border-radius:11px;padding:13px;text-align:center;">
+                    <span style="font-family:'Material Symbols Rounded';font-size:22px;color:{{ acc }};">cable</span>
+                    <div style="font-size:12px;font-weight:600;color:#0f172a;margin-top:3px;">Servidor MCP</div>
+                    <div style="font-size:10.5px;color:{{ acc }};">ler · escrever · buscar</div>
+                  </div>
+                  <div style="display:flex;align-items:center;color:#cbd5e1;"><span style="font-family:'Material Symbols Rounded';font-size:22px;">sync_alt</span></div>
+                  <div style="flex:1;background:#fff;border:1px solid #e8edf3;border-radius:11px;padding:13px;text-align:center;">
+                    <span style="font-family:'Material Symbols Rounded';font-size:22px;color:#f05127;font-variation-settings:'FILL' 1;">database</span>
+                    <div style="font-size:12px;font-weight:600;color:#334155;margin-top:3px;">Cofre SUPIMPA</div>
+                    <div style="font-size:10.5px;color:#94a3b8;">1.248 notas</div>
+                  </div>
+                </div>
+                <div style="font-size:11px;font-weight:700;letter-spacing:.05em;color:#94a3b8;margin-bottom:11px;">CLIENTES CONECTADOS</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;">
+                  <sc-for list="{{ conns }}" as="c" hint-placeholder-count="5">
+                    <div style="background:#fff;border:1px solid #e8edf3;border-radius:13px;padding:15px;">
+                      <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px;">
+                        <span style="width:36px;height:36px;border-radius:10px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#475569;flex-shrink:0;"><span style="font-family:'Material Symbols Rounded';font-size:19px;">{{ c.icon }}</span></span>
+                        <div style="flex:1;min-width:0;">
+                          <div style="font-size:13.5px;font-weight:700;color:#0f172a;">{{ c.name }}</div>
+                          <span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;color:{{ c.statusColor }};">{{ c.statusText }}</span>
+                        </div>
+                        <button onClick="{{ c.onClick }}" style="width:40px;height:23px;border-radius:999px;background:{{ c.track }};border:none;cursor:pointer;display:flex;align-items:center;justify-content:{{ c.knob }};padding:0 3px;transition:background .2s;flex-shrink:0;">
+                          <span style="width:17px;height:17px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);"></span>
+                        </button>
+                      </div>
+                      <p style="font-size:12px;line-height:1.5;color:#64748b;margin:0 0 10px;">{{ c.desc }}</p>
+                      <div style="display:flex;flex-wrap:wrap;gap:5px;">
+                        <sc-for list="{{ c.scopes }}" as="sc" hint-placeholder-count="2">
+                          <span style="font-size:10.5px;font-weight:600;color:#64748b;background:#f1f5f9;border-radius:6px;padding:2px 7px;">{{ sc }}</span>
+                        </sc-for>
+                      </div>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- ===== AJUSTES ===== -->
+          <sc-if value="{{ isAjustes }}">
+            <div class="sb-scroll" style="flex:1;min-width:0;overflow:auto;background:#fcfcfd;">
+              <div style="max-width:680px;margin:0 auto;padding:30px 32px 56px;">
+                <h1 style="font-family:'Sora',sans-serif;font-weight:800;font-size:25px;color:#0f172a;letter-spacing:-.02em;margin:0 0 5px;">Ajustes & Sincronização</h1>
+                <p style="font-size:14px;color:#64748b;margin:0 0 24px;line-height:1.6;">Um cofre só, vivo em todos os seus dispositivos.</p>
+                <div style="font-size:11px;font-weight:700;letter-spacing:.05em;color:#94a3b8;margin-bottom:11px;">DISPOSITIVOS</div>
+                <div style="display:flex;flex-direction:column;gap:9px;margin-bottom:26px;">
+                  <div style="display:flex;align-items:center;gap:13px;background:#fff;border:1px solid #e8edf3;border-radius:13px;padding:14px 16px;">
+                    <span style="width:40px;height:40px;border-radius:11px;background:{{ accSoft }};display:flex;align-items:center;justify-content:center;color:{{ acc }};flex-shrink:0;"><span style="font-family:'Material Symbols Rounded';font-size:21px;">laptop_mac</span></span>
+                    <div style="flex:1;"><div style="font-size:13.5px;font-weight:600;color:#0f172a;">MacBook Pro <span style="font-size:11px;font-weight:600;color:{{ acc }};background:{{ accSoft }};border-radius:6px;padding:1px 7px;margin-left:4px;">este dispositivo</span></div><div style="font-size:11.5px;color:#94a3b8;">312 MB · sincronizado agora</div></div>
+                    <span style="font-family:'Material Symbols Rounded';font-size:22px;color:#16a34a;font-variation-settings:'FILL' 1;">cloud_done</span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:13px;background:#fff;border:1px solid #e8edf3;border-radius:13px;padding:14px 16px;">
+                    <span style="width:40px;height:40px;border-radius:11px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#475569;flex-shrink:0;"><span style="font-family:'Material Symbols Rounded';font-size:21px;">smartphone</span></span>
+                    <div style="flex:1;"><div style="font-size:13.5px;font-weight:600;color:#0f172a;">Galaxy S24</div><div style="font-size:11.5px;color:#94a3b8;">captura rápida · há 2 min</div></div>
+                    <span style="font-family:'Material Symbols Rounded';font-size:22px;color:#16a34a;font-variation-settings:'FILL' 1;">cloud_done</span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:13px;background:#fff;border:1px solid #e8edf3;border-radius:13px;padding:14px 16px;">
+                    <span style="width:40px;height:40px;border-radius:11px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#475569;flex-shrink:0;"><span style="font-family:'Material Symbols Rounded';font-size:21px;">tablet_mac</span></span>
+                    <div style="flex:1;"><div style="font-size:13.5px;font-weight:600;color:#0f172a;">iPad Air</div><div style="font-size:11.5px;color:#94a3b8;">leitura · há 1 dia</div></div>
+                    <span style="font-family:'Material Symbols Rounded';font-size:22px;color:#16a34a;font-variation-settings:'FILL' 1;">cloud_done</span>
+                  </div>
+                </div>
+                <div style="font-size:11px;font-weight:700;letter-spacing:.05em;color:#94a3b8;margin-bottom:11px;">COFRE</div>
+                <div style="display:flex;align-items:center;gap:13px;background:#fff;border:1px solid #e8edf3;border-radius:13px;padding:14px 16px;margin-bottom:26px;">
+                  <span style="width:40px;height:40px;border-radius:11px;background:#fef4f0;display:flex;align-items:center;justify-content:center;color:#f05127;flex-shrink:0;"><span style="font-family:'Material Symbols Rounded';font-size:21px;font-variation-settings:'FILL' 1;">folder</span></span>
+                  <div style="flex:1;"><div style="font-size:13.5px;font-weight:600;color:#0f172a;font-family:ui-monospace,monospace;">~/Cofre Supimpa</div><div style="font-size:11.5px;color:#94a3b8;">1.248 notas · 312 MB · Markdown</div></div>
+                  <button style="font-size:12px;font-weight:600;color:{{ acc }};background:{{ accSoft }};border:1px solid {{ accBd }};border-radius:8px;padding:6px 12px;cursor:pointer;">Trocar</button>
+                </div>
+                <div style="font-size:11px;font-weight:700;letter-spacing:.05em;color:#94a3b8;margin-bottom:11px;">SINCRONIZAÇÃO</div>
+                <div style="background:#fff;border:1px solid #e8edf3;border-radius:13px;overflow:hidden;">
+                  <div style="display:flex;align-items:center;gap:13px;padding:14px 16px;border-bottom:1px solid #f1f5f9;">
+                    <span style="font-family:'Material Symbols Rounded';font-size:20px;color:#16a34a;font-variation-settings:'FILL' 1;">lock</span>
+                    <div style="flex:1;"><div style="font-size:13.5px;font-weight:600;color:#0f172a;">Criptografia ponta a ponta</div><div style="font-size:11.5px;color:#94a3b8;">Só seus dispositivos leem o cofre</div></div>
+                    <div style="width:40px;height:23px;border-radius:999px;background:{{ acc }};display:flex;align-items:center;justify-content:flex-end;padding:0 3px;"><span style="width:17px;height:17px;border-radius:50%;background:#fff;"></span></div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:13px;padding:14px 16px;border-bottom:1px solid #f1f5f9;">
+                    <span style="font-family:'Material Symbols Rounded';font-size:20px;color:#64748b;">sync</span>
+                    <div style="flex:1;"><div style="font-size:13.5px;font-weight:600;color:#0f172a;">Sincronização automática</div><div style="font-size:11.5px;color:#94a3b8;">Em tempo real, a cada alteração</div></div>
+                    <div style="width:40px;height:23px;border-radius:999px;background:{{ acc }};display:flex;align-items:center;justify-content:flex-end;padding:0 3px;"><span style="width:17px;height:17px;border-radius:50%;background:#fff;"></span></div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:13px;padding:14px 16px;">
+                    <span style="font-family:'Material Symbols Rounded';font-size:20px;color:#64748b;">cloud</span>
+                    <div style="flex:1;"><div style="font-size:13.5px;font-weight:600;color:#0f172a;">Provedor</div><div style="font-size:11.5px;color:#94a3b8;">Supimpa Cloud · São Paulo</div></div>
+                    <span style="font-size:12px;font-weight:600;color:#64748b;">Conectado</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PHONE (Android) ============ -->
+    <sc-if value="{{ showMobile }}">
+      <div style="width:300px;flex-shrink:0;margin-top:24px;display:flex;flex-direction:column;align-items:center;gap:11px;">
+        <div style="font-size:11px;color:#94a3b8;font-weight:600;display:flex;align-items:center;gap:6px;"><span style="font-family:'Material Symbols Rounded';font-size:15px;">android</span>Android · nova nota</div>
+        <div style="width:300px;height:624px;background:#0f172a;border-radius:40px;padding:9px;box-shadow:0 34px 64px -26px rgba(15,23,42,.55);position:relative;">
+          <div style="width:100%;height:100%;background:#f4f6fa;border-radius:32px;overflow:hidden;display:flex;flex-direction:column;position:relative;">
+            <div style="position:absolute;top:11px;left:50%;transform:translateX(-50%);width:9px;height:9px;background:#0f172a;border-radius:50%;z-index:6;"></div>
+            <div style="height:30px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 16px;">
+              <span style="font-size:11.5px;font-weight:700;color:#0f172a;">9:41</span>
+              <div style="display:flex;align-items:center;gap:5px;color:#0f172a;">
+                <span style="font-family:'Material Symbols Rounded';font-size:13px;">signal_cellular_alt</span>
+                <span style="font-family:'Material Symbols Rounded';font-size:13px;">wifi</span>
+                <span style="font-family:'Material Symbols Rounded';font-size:14px;font-variation-settings:'FILL' 1;">battery_full</span>
+              </div>
+            </div>
+            <div style="height:54px;flex-shrink:0;display:flex;align-items:center;gap:4px;padding:0 6px;">
+              <button style="width:40px;height:40px;border:none;background:transparent;border-radius:50%;color:#334155;cursor:pointer;display:flex;align-items:center;justify-content:center;"><span style="font-family:'Material Symbols Rounded';font-size:23px;">arrow_back</span></button>
+              <span style="flex:1;font-family:'Sora',sans-serif;font-weight:700;font-size:16px;color:#0f172a;">Nova nota</span>
+              <span style="display:inline-flex;align-items:center;gap:4px;background:#e7f6ec;color:#16a34a;border-radius:999px;padding:3px 9px;font-size:10.5px;font-weight:700;margin-right:2px;"><span style="font-family:'Material Symbols Rounded';font-size:13px;font-variation-settings:'FILL' 1;">cloud_done</span>sync</span>
+              <button style="width:40px;height:40px;border:none;background:transparent;border-radius:50%;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center;"><span style="font-family:'Material Symbols Rounded';font-size:21px;">more_vert</span></button>
+            </div>
+            <div style="flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;padding:6px 18px 0;">
+              <input placeholder="Título" style="width:100%;border:none;outline:none;font-family:'Sora',sans-serif;font-weight:700;font-size:21px;color:#0f172a;background:transparent;padding:0;margin-bottom:8px;" />
+              <div style="display:flex;align-items:center;gap:7px;margin-bottom:12px;">
+                <span style="display:inline-flex;align-items:center;gap:4px;background:#fef4f0;color:#f05127;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:600;"><span style="font-family:'Material Symbols Rounded';font-size:13px;font-variation-settings:'FILL' 1;">inbox</span>Inbox</span>
+                <span style="display:inline-flex;align-items:center;gap:3px;background:#fff;color:#94a3b8;border:1px dashed #cbd5e1;border-radius:999px;padding:3px 9px;font-size:11px;font-weight:600;"><span style="font-family:'Material Symbols Rounded';font-size:13px;">add</span>tag</span>
+              </div>
+              <textarea value="{{ draft }}" onChange="{{ onDraft }}" placeholder="Escreva ou cole o que quer guardar…" style="flex:1;width:100%;border:none;outline:none;resize:none;font-family:'Inter',sans-serif;font-size:14px;line-height:1.65;color:#0f172a;background:transparent;"></textarea>
+            </div>
+            <sc-if value="{{ justSynced }}">
+              <div style="margin:0 13px 8px;background:#1f2937;border-radius:11px;padding:11px 13px;display:flex;align-items:center;gap:9px;animation:sbtoast .3s ease;box-shadow:0 10px 22px -8px rgba(0,0,0,.55);">
+                <span style="font-family:'Material Symbols Rounded';font-size:18px;color:#4ade80;font-variation-settings:'FILL' 1;">cloud_done</span>
+                <span style="font-size:12px;font-weight:500;color:#f1f5f9;flex:1;">Salvo e sincronizado com o desktop</span>
+              </div>
+            </sc-if>
+            <div style="height:62px;flex-shrink:0;background:#ffffff;border-top:1px solid #eef2f6;display:flex;align-items:center;gap:2px;padding:0 10px;">
+              <button style="width:42px;height:42px;border:none;background:transparent;border-radius:50%;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center;"><span style="font-family:'Material Symbols Rounded';font-size:21px;">mic</span></button>
+              <button style="width:42px;height:42px;border:none;background:transparent;border-radius:50%;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center;"><span style="font-family:'Material Symbols Rounded';font-size:21px;">photo_camera</span></button>
+              <button style="width:42px;height:42px;border:none;background:transparent;border-radius:50%;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center;"><span style="font-family:'Material Symbols Rounded';font-size:21px;">attach_file</span></button>
+              <button onClick="{{ saveCapture }}" style="margin-left:auto;width:54px;height:54px;border:none;border-radius:18px;background:#f05127;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 7px 16px -4px rgba(240,81,39,.55);"><span style="font-family:'Material Symbols Rounded';font-size:26px;">check</span></button>
+            </div>
+            <div style="height:32px;flex-shrink:0;background:#f4f6fa;display:flex;align-items:center;justify-content:center;gap:60px;">
+              <span style="width:0;height:0;border-top:7px solid transparent;border-bottom:7px solid transparent;border-right:11px solid #9aa6b4;"></span>
+              <span style="width:14px;height:14px;border-radius:50%;border:2px solid #9aa6b4;"></span>
+              <span style="width:12px;height:12px;border-radius:3px;border:2px solid #9aa6b4;"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+  </div>
+</div>
+```
+
+## 2. Lógica completa (JavaScript)
+
+```js
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.taRef = React.createRef();
+    this.savedSel = null;
+    const notes = [
+      { id:'stack-supimpa', title:'Stack padrão Supimpa', folder:'Sistema', tags:['dev','padrão','mcp'], updated:'há 5 min', readBy:'Claude Code · há 5 min',
+        md:"Tudo que a CLI precisa saber para gerar um projeto no padrão da agência. Esta nota é consultada pelo **MCP** sempre que abro um site ou app novo.\n\n## Frontend\n- HTML semântico + Tailwind (config padrão da casa)\n- **Sora** nos títulos, **Inter** no corpo\n- Paleta: azul `#0055a1` e laranja `#f05127`\n\n## Backend & CMS\n- WordPress + WooCommerce para lojas\n- Hospedagem na Cloudflare, assets no R2\n\n```bash\nsupimpa new site --from-vault \"Stack padrão\" --client \"Torrefadora X\"\n```\n\nVeja também [[Sistema de Design]] e [[Prompts & snippets Claude]]." },
+      { id:'projeto-x', title:'Cliente X — Site', folder:'Projetos', tags:['site','cliente','wordpress'], updated:'há 2h', readBy:'',
+        md:"Site institucional para captação B2B. Briefing aprovado, design em andamento.\n\n## Escopo\n- Home + Serviços + Sobre + Contato\n- Formulário de orçamento integrado ao WhatsApp\n- SEO local para Varginha\n\n> **Prazo:** no ar dia 12/07 — 15 dias a partir do briefing.\n\nConstruído sobre a [[Stack padrão Supimpa]]." },
+      { id:'briefing-cafe', title:'Briefing — Torrefadora', folder:'Projetos', tags:['café','b2b','bilíngue'], updated:'ontem', readBy:'',
+        md:"Torrefadora exportadora — precisa de presença bilíngue para compradores internacionais.\n\n## Requisitos\n- Site **PT / EN**\n- Catálogo de origens com rastreabilidade de lote\n- Página de exportação e contato comercial\n\nSeguir a [[Stack padrão Supimpa]]." },
+      { id:'design-system', title:'Sistema de Design', folder:'Sistema', tags:['design','padrão'], updated:'há 3 dias', readBy:'Codex · ontem',
+        md:"Referência visual única para todos os projetos da agência.\n\n## Cores\n- Azul `#0055a1` — primária\n- Laranja `#f05127` — destaque / CTA\n- Slate para texto e fundos neutros\n\n## Tipografia\n- **Sora** — títulos (600–800)\n- **Inter** — corpo (400–600)\n\nAplicada na [[Stack padrão Supimpa]]." },
+      { id:'snippets-claude', title:'Prompts & snippets Claude', folder:'Sistema', tags:['ia','prompts','mcp'], updated:'há 1 dia', readBy:'',
+        md:"Prompts e comandos que uso com mais frequência nas CLIs conectadas ao cofre.\n\n## Comandos\n- `/novo-projeto` — puxa a stack do cofre\n- `/revisar` — checa SEO e performance\n- `/publicar` — gera checklist de go-live\n\n```\nclaude \"use a nota 'Stack padrão' como base e gere a home\"\n```\n\nConectado via MCP em qualquer CLI." },
+      { id:'reuniao', title:'Reunião 28/06', folder:'Diário', tags:['reunião'], updated:'há 2h', readBy:'',
+        md:"Pontos da call de hoje com o cliente.\n\n## Decisões\n- Aprovado o conceito visual\n- Incluir blog na fase 2\n- Próxima entrega: sexta-feira\n\nRelacionado a [[Cliente X — Site]]." }
+    ];
+    this.projMeta = {
+      'cliente-x': {name:'Cliente X — Site', client:'Institucional · B2B', color:'#f05127', soft:'#fef4f0', bd:'#fde0d8', deadline:'Entrega 12 jul', deadlineState:'soon', icon:'language'},
+      'cafe':      {name:'Briefing Torrefadora', client:'Café · exportação', color:'#f05127', soft:'#fef4f0', bd:'#fde0d8', deadline:'Entrega 20 jul', deadlineState:'normal', icon:'coffee'},
+      'brain':     {name:'Second Brain', client:'Interno · produto', color:'#6d4ad4', soft:'#f3effc', bd:'#e2d8f7', deadline:'Contínuo', deadlineState:'normal', icon:'psychology'},
+      'sistema':   {name:'Sistema & Marca', client:'Interno · design', color:'#0055a1', soft:'#E1EEF9', bd:'#cae2f6', deadline:'Entrega 5 jul', deadlineState:'today', icon:'palette'}
+    };
+    const vmap = {'Notas':'notas','Tarefas':'tarefas','Grafo':'grafo','Conexões MCP':'mcp','Ajustes & Sync':'ajustes'};
+    this.state = {
+      view: vmap[props.defaultView] || 'notas',
+      notes,
+      activeId: 'stack-supimpa',
+      mode: 'edit',
+      draft: '',
+      justSynced: false,
+      nextCap: 3,
+      nextNoteId: 1,
+      linkPicker: { open:false, query:'' },
+      boardTab: 'quadro',
+      tasks: [
+        {id:'t1', title:'Home — layout final aprovado', proj:'cliente-x', status:'doing', due:'Hoje', dueState:'today', subs:{done:2,total:4}},
+        {id:'t7', title:'Configurar MCP no Codex + opencode', proj:'brain', status:'doing', due:'Hoje', dueState:'today', subs:{done:3,total:4}},
+        {id:'t6', title:'Wireframe da página de exportação', proj:'cafe', status:'doing', due:'Qui', dueState:'soon', subs:{done:1,total:3}},
+        {id:'t2', title:'Formulário de orçamento → WhatsApp', proj:'cliente-x', status:'todo', due:'Amanhã', dueState:'soon', subs:{done:0,total:3}},
+        {id:'t5', title:'Publicar changelog v2', proj:'brain', status:'todo', due:'Atrasada 1d', dueState:'overdue', subs:{done:0,total:1}},
+        {id:'t4', title:'Enviar proposta comercial', proj:'cafe', status:'todo', due:'Atrasada 2d', dueState:'overdue', subs:{done:1,total:2}},
+        {id:'t3', title:'Catálogo de origens (PT / EN)', proj:'cafe', status:'todo', due:'10 jul', dueState:'normal', subs:{done:0,total:5}},
+        {id:'t8', title:'Aprovar paleta com o cliente', proj:'cliente-x', status:'review', due:'Hoje', dueState:'today', subs:{done:0,total:0}},
+        {id:'t9', title:'Revisar SEO local de Varginha', proj:'cliente-x', status:'review', due:'Sex', dueState:'soon', subs:{done:0,total:0}},
+        {id:'t10', title:'Deploy do staging — Cliente X', proj:'cliente-x', status:'done', due:'Entregue', dueState:'done', subs:{done:0,total:0}},
+        {id:'t11', title:'Briefing aprovado pelo cliente', proj:'cafe', status:'done', due:'Entregue', dueState:'done', subs:{done:0,total:0}},
+        {id:'t12', title:'Tokens de design salvos no cofre', proj:'sistema', status:'done', due:'Entregue', dueState:'done', subs:{done:0,total:0}}
+      ],
+      captures: [
+        {id:'cap-2', text:'Ligar p/ gráfica — banner do Expocafé até sexta', when:'há 1h'},
+        {id:'cap-1', text:'Ideia: página de origens do café com mapa interativo', when:'ontem'}
+      ],
+      conns: {'claude-code':true,'claude-desktop':true,'codex':false,'opencode':true,'cursor':false}
+    };
+  }
+
+  accColors(){
+    const m = {
+      'Azul Supimpa': {hex:'#0055a1', soft:'#E1EEF9', bd:'#cae2f6'},
+      'Grafite':      {hex:'#334155', soft:'#eef2f6', bd:'#dbe2ea'},
+      'Violeta':      {hex:'#6d4ad4', soft:'#f3effc', bd:'#e2d8f7'}
+    };
+    return m[this.props.accent] || m['Azul Supimpa'];
+  }
+
+  setView(v){ this.setState({view:v, linkPicker:{open:false,query:''}}); }
+  selectNote(id){ this.setState({activeId:id, view:'notas', mode:'read', linkPicker:{open:false,query:''}}); }
+  setEdit(){ this.setState({mode:'edit'}); }
+  setRead(){ this.setState({mode:'read', linkPicker:{open:false,query:''}}); }
+  toggleConn(id){ this.setState(s => ({conns:{...s.conns, [id]:!s.conns[id]}})); }
+  setBoardTab(t){ this.setState({boardTab:t}); }
+  advanceTask(id){
+    const order = ['todo','doing','review','done'];
+    this.setState(s => ({ tasks: s.tasks.map(t => {
+      if(t.id !== id) return t;
+      const ni = Math.min(order.indexOf(t.status) + 1, 3); const ns = order[ni];
+      if(ns === 'done') return {...t, status:'done', prevDue:t.due, prevDueState:t.dueState, due:'Entregue', dueState:'done'};
+      return {...t, status:ns};
+    })}));
+  }
+  toggleTaskDone(id){
+    this.setState(s => ({ tasks: s.tasks.map(t => {
+      if(t.id !== id) return t;
+      if(t.status === 'done') return {...t, status:'todo', due:t.prevDue || 'Sem prazo', dueState:t.prevDueState || 'normal'};
+      return {...t, status:'done', prevDue:t.due, prevDueState:t.dueState, due:'Entregue', dueState:'done'};
+    })}));
+  }
+  addTask(){
+    const id = 'nt-' + Date.now();
+    this.setState(s => ({ tasks:[{id, title:'Nova tarefa', proj:'cliente-x', status:'todo', due:'Sem prazo', dueState:'normal', subs:{done:0,total:0}}, ...s.tasks] }));
+  }
+  onDraft(e){ this.setState({draft:e.target.value}); }
+
+  startNewNote(){
+    const id = 'user-' + this.state.nextNoteId;
+    const note = { id, title:'', folder:'Inbox', tags:['nova'], updated:'agora', readBy:'', md:'' };
+    this.setState(s => ({ notes:[note, ...s.notes], nextNoteId:s.nextNoteId+1, activeId:id, view:'notas', mode:'edit', linkPicker:{open:false,query:''} }));
+  }
+
+  updateField(field, val){
+    this.setState(s => ({ notes: s.notes.map(n => n.id === s.activeId ? {...n, [field]:val, updated:'agora'} : n) }));
+  }
+  onTitle(e){ this.updateField('title', e.target.value); }
+  onBody(e){ this.updateField('md', e.target.value); }
+
+  srcEl(){ return this.taRef.current || document.getElementById('sb-md-source'); }
+  applyWrap(before, after){
+    const ta = this.srcEl(); if(!ta) return;
+    const s = ta.selectionStart, e = ta.selectionEnd, v = ta.value;
+    const sel = v.slice(s, e);
+    const nv = v.slice(0, s) + before + sel + after + v.slice(e);
+    this.updateField('md', nv);
+    const ns = s + before.length, ne = ns + sel.length;
+    requestAnimationFrame(() => { const t = this.taRef.current; if(t){ t.focus(); t.setSelectionRange(ns, ne); } });
+  }
+  linePrefix(prefix){
+    const ta = this.srcEl(); if(!ta) return;
+    const s = ta.selectionStart, v = ta.value;
+    const ls = v.lastIndexOf('\n', s - 1) + 1;
+    let le = v.indexOf('\n', s); if(le === -1) le = v.length;
+    const line = v.slice(ls, le);
+    const cleaned = line.replace(/^(#{1,6}\s+|[-*]\s+|>\s+)/, '');
+    let nv, caret;
+    if(line.indexOf(prefix) === 0){ nv = v.slice(0, ls) + cleaned + v.slice(le); caret = ls + cleaned.length; }
+    else { nv = v.slice(0, ls) + prefix + cleaned + v.slice(le); caret = ls + prefix.length + cleaned.length; }
+    this.updateField('md', nv);
+    requestAnimationFrame(() => { const t = this.taRef.current; if(t){ t.focus(); t.setSelectionRange(caret, caret); } });
+  }
+
+  openLink(){
+    const ta = this.srcEl();
+    this.savedSel = ta ? {s:ta.selectionStart, e:ta.selectionEnd} : null;
+    this.setState({linkPicker:{open:true, query:''}});
+  }
+  closeLink(){ this.setState({linkPicker:{open:false, query:''}}); }
+  onLinkQuery(e){ const q = e.target.value; this.setState({linkPicker:{open:true, query:q}}); }
+  insertWiki(title){
+    const ta = this.srcEl();
+    const cur = this.state.notes.find(n => n.id === this.state.activeId);
+    const v = ta ? ta.value : (cur ? cur.md : '');
+    const sel = this.savedSel || (ta ? {s:ta.selectionStart, e:ta.selectionEnd} : {s:v.length, e:v.length});
+    const ins = '[[' + title + ']]';
+    const nv = v.slice(0, sel.s) + ins + v.slice(sel.e);
+    this.updateField('md', nv);
+    this.closeLink();
+    const caret = sel.s + ins.length;
+    requestAnimationFrame(() => { const t = this.taRef.current; if(t){ t.focus(); t.setSelectionRange(caret, caret); } });
+  }
+
+  findId(title){
+    const t = (title || '').trim().toLowerCase();
+    const n = this.state.notes.find(x => x.title.toLowerCase() === t);
+    return n ? n.id : null;
+  }
+  wikiTitles(md){
+    const out = []; const re = /\[\[([^\]]+)\]\]/g; let m;
+    while((m = re.exec(md || ''))) out.push(m[1].trim());
+    return out;
+  }
+
+  parseInline(text){
+    const out = []; let buf = ''; let i = 0; let k = 0;
+    const acc = this.accColors();
+    const flush = () => { if(buf){ out.push(buf); buf = ''; } };
+    const codeStyle = {fontFamily:'ui-monospace,Menlo,monospace', fontSize:'.86em', background:'#f1f5f9', color:'#0f172a', borderRadius:4, padding:'1px 5px'};
+    while(i < text.length){
+      const rest = text.slice(i); let m;
+      if((m = rest.match(/^`([^`]+)`/))){ flush(); out.push(React.createElement('code',{key:'c'+(k++),style:codeStyle}, m[1])); i += m[0].length; continue; }
+      if((m = rest.match(/^\*\*([^*]+)\*\*/))){ flush(); out.push(React.createElement('strong',{key:'b'+(k++),style:{fontWeight:700,color:'#0f172a'}}, this.parseInline(m[1]))); i += m[0].length; continue; }
+      if((m = rest.match(/^\*([^*\n]+)\*/))){ flush(); out.push(React.createElement('em',{key:'i'+(k++),style:{fontStyle:'italic'}}, this.parseInline(m[1]))); i += m[0].length; continue; }
+      if((m = rest.match(/^\[\[([^\]]+)\]\]/))){
+        flush(); const title = m[1].trim(); const id = this.findId(title);
+        out.push(React.createElement('span', {key:'w'+(k++), onClick: id ? (() => this.selectNote(id)) : undefined,
+          style:{color:acc.hex, background:acc.soft, borderBottom:'1px solid '+acc.bd, borderRadius:4, padding:'1px 6px 1px 4px', fontWeight:600, cursor: id ? 'pointer' : 'default', opacity: id ? 1 : .6, whiteSpace:'nowrap'}},
+          [ React.createElement('span',{key:'ic',style:{fontFamily:'Material Symbols Rounded', fontSize:'.95em', verticalAlign:'-2px', marginRight:2}}, 'north_east'), title ]));
+        i += m[0].length; continue;
+      }
+      if((m = rest.match(/^\[([^\]]+)\]\(([^)]+)\)/))){
+        flush(); out.push(React.createElement('a',{key:'l'+(k++), href:m[2], onClick:(e)=>e.preventDefault(), style:{color:acc.hex, textDecoration:'underline', textUnderlineOffset:'2px', cursor:'pointer'}}, m[1])); i += m[0].length; continue;
+      }
+      buf += text[i]; i++;
+    }
+    flush();
+    return out;
+  }
+
+  renderMd(md){
+    md = md || '';
+    const lines = md.split('\n');
+    const blocks = []; let i = 0; let k = 0;
+    const pStyle = {fontSize:15, lineHeight:1.72, color:'#334155', margin:'0 0 16px'};
+    const h2Style = {fontFamily:"'Sora',sans-serif", fontWeight:700, fontSize:18, color:'#0f172a', margin:'24px 0 10px', letterSpacing:'-.01em'};
+    const h3Style = {fontFamily:"'Sora',sans-serif", fontWeight:700, fontSize:15, color:'#0f172a', margin:'20px 0 8px'};
+    const ulStyle = {margin:'0 0 16px', padding:0, listStyle:'none', display:'flex', flexDirection:'column', gap:8};
+    const liStyle = {display:'flex', gap:10, fontSize:14.5, lineHeight:1.6, color:'#475569'};
+    const bulletStyle = {fontFamily:"'Material Symbols Rounded'", fontSize:18, color:'#cbd5e1', flexShrink:0, marginTop:1, lineHeight:1.4};
+    const preStyle = {background:'#0f172a', color:'#e2e8f0', borderRadius:11, padding:'14px 16px', margin:'0 0 16px', overflow:'auto', fontFamily:"ui-monospace,'SF Mono',Menlo,monospace", fontSize:12.5, lineHeight:1.6, whiteSpace:'pre'};
+    const acc = this.accColors();
+    const quoteStyle = {borderLeft:'3px solid '+acc.bd, background:acc.soft, padding:'11px 15px', borderRadius:'0 10px 10px 0', margin:'0 0 16px', color:'#475569', fontSize:14.5, lineHeight:1.6};
+    while(i < lines.length){
+      const line = lines[i];
+      if(/^```/.test(line)){ const code = []; i++; while(i < lines.length && !/^```/.test(lines[i])){ code.push(lines[i]); i++; } i++; blocks.push(React.createElement('pre',{key:k++,style:preStyle}, code.join('\n'))); continue; }
+      if(/^###\s+/.test(line)){ blocks.push(React.createElement('h3',{key:k++,style:h3Style}, this.parseInline(line.replace(/^###\s+/,'')))); i++; continue; }
+      if(/^##\s+/.test(line)){ blocks.push(React.createElement('h2',{key:k++,style:h2Style}, this.parseInline(line.replace(/^##\s+/,'')))); i++; continue; }
+      if(/^#\s+/.test(line)){ blocks.push(React.createElement('h2',{key:k++,style:h2Style}, this.parseInline(line.replace(/^#\s+/,'')))); i++; continue; }
+      if(/^>\s?/.test(line)){ const q = []; while(i < lines.length && /^>\s?/.test(lines[i])){ q.push(lines[i].replace(/^>\s?/,'')); i++; } blocks.push(React.createElement('blockquote',{key:k++,style:quoteStyle}, this.parseInline(q.join(' ')))); continue; }
+      if(/^[-*]\s+/.test(line)){
+        const items = []; while(i < lines.length && /^[-*]\s+/.test(lines[i])){ items.push(lines[i].replace(/^[-*]\s+/,'')); i++; }
+        blocks.push(React.createElement('ul',{key:k++,style:ulStyle}, items.map((it,idx) => React.createElement('li',{key:idx,style:liStyle}, [ React.createElement('span',{key:'b',style:bulletStyle}, 'chevron_right'), React.createElement('span',{key:'t'}, this.parseInline(it)) ]))));
+        continue;
+      }
+      if(line.trim() === ''){ i++; continue; }
+      const para = []; while(i < lines.length && lines[i].trim() !== '' && !/^(#{1,6}\s|>\s?|```|[-*]\s)/.test(lines[i])){ para.push(lines[i]); i++; }
+      blocks.push(React.createElement('p',{key:k++,style:pStyle}, this.parseInline(para.join(' '))));
+    }
+    if(blocks.length === 0) return React.createElement('div',{style:{color:'#cbd5e1', fontSize:15, fontStyle:'italic'}}, 'A prévia aparece aqui conforme você escreve…');
+    return React.createElement('div', {style:{fontFamily:"'Inter',sans-serif"}}, blocks);
+  }
+
+  componentWillUnmount(){ clearTimeout(this._tt); }
+  saveCapture(){
+    const t = (this.state.draft || '').trim(); if(!t) return;
+    this.setState(s => ({
+      captures: [{id:'cap-'+s.nextCap, text:t, when:'agora'}, ...s.captures],
+      nextCap: s.nextCap + 1, draft: '', justSynced: true
+    }));
+    clearTimeout(this._tt);
+    this._tt = setTimeout(() => this.setState({justSynced:false}), 2800);
+  }
+
+  renderVals(){
+    const acc = this.accColors();
+    const view = this.state.view;
+    const aid = this.state.activeId;
+
+    const railDef = [['notas','edit_note','Notas'],['tarefas','checklist','Tarefas'],['grafo','hub','Grafo'],['mcp','cable','MCP'],['ajustes','settings','Ajustes']];
+    const rail = railDef.map(([id,icon,label]) => {
+      const active = view === id;
+      return {id, icon, label, active, bg: active ? acc.soft : 'transparent', color: active ? acc.hex : '#94a3b8', onClick: () => this.setView(id)};
+    });
+
+    const mk = (n) => {
+      const active = n.id === aid;
+      return {id:n.id, title:n.title || 'Sem título', active, onClick: () => this.selectNote(n.id),
+        bg: active ? '#eef2f7' : 'transparent', color: active ? '#0f172a' : '#475569',
+        weight: active ? '600' : '500', bar: active ? acc.hex : 'transparent'};
+    };
+    const byFolder = (f) => this.state.notes.filter(n => n.folder === f).map(mk);
+    const inboxItem = (id, title) => {
+      const active = id === aid;
+      return {id, title: title.length > 38 ? title.slice(0,38) + '…' : title, active,
+        onClick: () => this.selectNote(id), bg: active ? '#eef2f7' : 'transparent',
+        color: active ? '#0f172a' : '#475569', weight: active ? '600' : '500',
+        bar: active ? '#f05127' : 'transparent'};
+    };
+    const inbox = this.state.notes.filter(n => n.folder === 'Inbox').map(n => inboxItem(n.id, n.title || 'Sem título'))
+      .concat(this.state.captures.map(c => inboxItem(c.id, c.text)));
+
+    const note = this.state.notes.find(n => n.id === aid);
+    const capture = note ? null : this.state.captures.find(c => c.id === aid);
+    const editable = !!note;
+    const effMode = editable ? this.state.mode : 'read';
+    const isEdit = effMode === 'edit';
+    const isRead = !isEdit;
+
+    let activeNote, md, activeTags = [], activeLinks = [], activeBacklinks = [];
+    if(note){
+      activeNote = {title: note.title || 'Sem título', folder: note.folder, updated: note.updated, readBy: note.readBy || '', md: note.md};
+      md = note.md;
+      activeTags = note.tags || [];
+      const titles = Array.from(new Set(this.wikiTitles(note.md)));
+      activeLinks = titles.map(t => ({title:t, id:this.findId(t)})).filter(x => x.id).map(x => ({title:x.title, onClick: () => this.selectNote(x.id)}));
+      const lt = (note.title || '').toLowerCase();
+      activeBacklinks = this.state.notes.filter(n => n.id !== note.id && this.wikiTitles(n.md).some(t => t.toLowerCase() === lt)).map(n => ({title:n.title, onClick: () => this.selectNote(n.id)}));
+    } else {
+      const txt = capture ? capture.text : '';
+      activeNote = {title: (txt.length > 52 ? txt.slice(0,52) + '…' : txt) || 'Nota', folder:'Inbox', updated: capture ? capture.when : '', readBy:'', md: txt};
+      md = txt; activeTags = ['captura','Android'];
+    }
+
+    // link picker results
+    const q = (this.state.linkPicker.query || '').trim().toLowerCase();
+    const linkResults = this.state.notes
+      .filter(n => n.id !== aid && (n.title || '').toLowerCase().indexOf(q) !== -1 && n.title)
+      .slice(0, 8)
+      .map(n => ({title:n.title, folder:n.folder, onClick: () => this.insertWiki(n.title)}));
+    const exact = this.state.notes.some(n => (n.title || '').toLowerCase() === q);
+    const linkCreateShow = q.length > 0 && !exact;
+
+    const connDef = [
+      ['claude-code','Claude Code','terminal','Lê e escreve notas no cofre direto do terminal.',['ler cofre','escrever','buscar']],
+      ['claude-desktop','Claude Desktop','psychology','Consulta o cofre durante as conversas.',['ler cofre','buscar']],
+      ['codex','Codex','memory','Carrega o contexto do sistema ao gerar código.',['ler cofre']],
+      ['opencode','opencode','cable','Agente de terminal com acesso total ao cofre.',['ler cofre','escrever']],
+      ['cursor','Cursor','code','Editor com o contexto do seu cofre.',['ler cofre']]
+    ];
+    const conns = connDef.map(([id,name,icon,desc,scopes]) => {
+      const on = !!this.state.conns[id];
+      return {id, name, icon, desc, scopes, on, statusText: on ? 'Conectado' : 'Disponível',
+        statusColor: on ? '#16a34a' : '#94a3b8', knob: on ? 'flex-end' : 'flex-start',
+        track: on ? acc.hex : '#cbd5e1', onClick: () => this.toggleConn(id)};
+    });
+
+    const sel = (id) => this.selectNote(id);
+
+    // ===== Tarefas & Projetos =====
+    const dueColors = {
+      overdue:{bg:'#fef2f2',color:'#dc2626',bd:'#fecaca',icon:'error'},
+      today:  {bg:'#fff7ed',color:'#ea580c',bd:'#fed7aa',icon:'today'},
+      soon:   {bg:'#fefce8',color:'#a16207',bd:'#fde68a',icon:'schedule'},
+      normal: {bg:'#f1f5f9',color:'#64748b',bd:'#e2e8f0',icon:'schedule'},
+      done:   {bg:'#f0fdf4',color:'#16a34a',bd:'#bbf7d0',icon:'check_circle'}
+    };
+    const tasks = this.state.tasks;
+    const open = t => t.status !== 'done';
+    const summary = {
+      atrasadas: tasks.filter(t => open(t) && t.dueState === 'overdue').length,
+      hoje: tasks.filter(t => open(t) && t.dueState === 'today').length,
+      semana: tasks.filter(t => open(t) && (t.dueState === 'today' || t.dueState === 'soon')).length,
+      entregues: tasks.filter(t => t.status === 'done').length
+    };
+    const cardOf = (t) => {
+      const pm = this.projMeta[t.proj] || {name:'—',color:'#94a3b8'};
+      const dc = dueColors[t.dueState] || dueColors.normal;
+      const done = t.status === 'done';
+      return {id:t.id, projName:pm.name, projColor:pm.color, title:t.title, done,
+        dueLabel:t.due, dueBg:dc.bg, dueColor:dc.color, dueBd:dc.bd, dueIcon:dc.icon,
+        subsShow: t.subs.total > 0 && !done, subsText: t.subs.done + '/' + t.subs.total,
+        canAdvance: !done, advanceTitle: t.status === 'review' ? 'Marcar entregue' : 'Avançar',
+        onAdvance: () => this.advanceTask(t.id), onToggle: () => this.toggleTaskDone(t.id),
+        checkBorder: done ? '#16a34a' : '#cbd5e1', checkBg: done ? '#16a34a' : '#fff',
+        titleColor: done ? '#94a3b8' : '#0f172a', titleDeco: done ? 'line-through' : 'none'};
+    };
+    const colDef = [['todo','A fazer','#94a3b8'],['doing','Fazendo',acc.hex],['review','Revisão','#f05127'],['done','Entregue','#16a34a']];
+    const columns = colDef.map(([key,label,color]) => {
+      const items = tasks.filter(t => t.status === key).map(cardOf);
+      return {key, label, color, count: items.length, tasks: items, empty: items.length === 0};
+    });
+    const projects = Object.keys(this.projMeta).map(key => {
+      const pm = this.projMeta[key];
+      const ts = tasks.filter(t => t.proj === key);
+      const total = ts.length, doneN = ts.filter(t => t.status === 'done').length;
+      const doing = ts.filter(t => t.status === 'doing' || t.status === 'review').length;
+      const todo = ts.filter(t => t.status === 'todo').length;
+      const pct = total ? Math.round(doneN / total * 100) : 0;
+      const dc = dueColors[pm.deadlineState] || dueColors.normal;
+      return {key, name:pm.name, client:pm.client, color:pm.color, soft:pm.soft, bd:pm.bd, icon:pm.icon,
+        deadline:pm.deadline, deadlineBg:dc.bg, deadlineColor:dc.color, deadlineBd:dc.bd, deadlineIcon:dc.icon,
+        pct, pctText: pct + '%', pctWidth: pct + '%', total, done:doneN, doing, todo};
+    }).filter(p => p.total > 0);
+    const boardTab = this.state.boardTab;
+
+    return {
+      acc: acc.hex, accSoft: acc.soft, accBd: acc.bd,
+      showMobile: this.props.showMobile !== false,
+      isNotas: view === 'notas', isTarefas: view === 'tarefas', isGrafo: view === 'grafo', isMcp: view === 'mcp', isAjustes: view === 'ajustes',
+      summary, columns, projects,
+      isQuadro: boardTab === 'quadro', isProjetos: boardTab === 'projetos',
+      quadroBg: boardTab === 'quadro' ? '#fff' : 'transparent', quadroColor: boardTab === 'quadro' ? '#0f172a' : '#94a3b8', quadroShadow: boardTab === 'quadro' ? '0 1px 2px rgba(0,0,0,.05)' : 'none',
+      projetosBg: boardTab === 'projetos' ? '#fff' : 'transparent', projetosColor: boardTab === 'projetos' ? '#0f172a' : '#94a3b8', projetosShadow: boardTab === 'projetos' ? '0 1px 2px rgba(0,0,0,.05)' : 'none',
+      setQuadro: () => this.setBoardTab('quadro'), setProjetos: () => this.setBoardTab('projetos'), addTask: () => this.addTask(),
+      rail, inbox, proj: byFolder('Projetos'), sis: byFolder('Sistema'), diario: byFolder('Diário'),
+      inboxCount: inbox.length,
+      activeNote, activeTags,
+      preview: this.renderMd(md),
+      editable, isEdit, isRead,
+      editBg: isEdit ? '#fff' : 'transparent', editColor: isEdit ? '#0f172a' : '#94a3b8', editShadow: isEdit ? '0 1px 2px rgba(0,0,0,.05)' : 'none',
+      readBg: isRead ? '#fff' : 'transparent', readColor: isRead ? '#0f172a' : '#94a3b8', readShadow: isRead ? '0 1px 2px rgba(0,0,0,.05)' : 'none',
+      taRef: this.taRef,
+      onTitle: (e) => this.onTitle(e), onBody: (e) => this.onBody(e),
+      setEdit: () => this.setEdit(), setRead: () => this.setRead(),
+      fmtBold: () => this.applyWrap('**','**'), fmtItalic: () => this.applyWrap('*','*'), fmtCode: () => this.applyWrap('`','`'),
+      fmtH2: () => this.linePrefix('## '), fmtH3: () => this.linePrefix('### '),
+      fmtList: () => this.linePrefix('- '), fmtQuote: () => this.linePrefix('> '), fmtLink: () => this.applyWrap('[','](https://)'),
+      openLink: () => this.openLink(), closeLink: () => this.closeLink(), onLinkQuery: (e) => this.onLinkQuery(e),
+      linkOpen: this.state.linkPicker.open, linkQuery: this.state.linkPicker.query,
+      linkResults, noLinkResults: linkResults.length === 0 && !linkCreateShow,
+      linkCreateShow, linkCreateClick: () => this.insertWiki(this.state.linkPicker.query.trim()),
+      hasReadBy: !!(activeNote && activeNote.readBy),
+      activeLinks, activeBacklinks,
+      hasLinks: activeLinks.length > 0, hasBacklinks: activeBacklinks.length > 0,
+      noConnections: activeLinks.length === 0 && activeBacklinks.length === 0 && !(activeNote && activeNote.readBy),
+      nodeClick: { stack: () => sel('stack-supimpa'), design: () => sel('design-system'), prompts: () => sel('snippets-claude'), clientex: () => sel('projeto-x'), briefing: () => sel('briefing-cafe'), reuniao: () => sel('reuniao') },
+      conns, connectedCount: conns.filter(c => c.on).length,
+      startNewNote: () => this.startNewNote(),
+      draft: this.state.draft, onDraft: (e) => this.onDraft(e), saveCapture: () => this.saveCapture(), justSynced: this.state.justSynced
+    };
+  }
+}
+```
+
+## Notas de implementação por feature
+
+### Parser Markdown → UI (método `renderMd` + `parseInline`)
+Processamento em duas passadas:
+1. **Por linha** (`renderMd`): detecta blocos — fence ```` ``` ````, `#`/`##`/`###`, `>` (citação, consome linhas consecutivas), `-`/`*` (lista, consome linhas consecutivas), parágrafo (consome linhas até encontrar um marcador de bloco ou linha vazia).
+2. **Por regex inline** (`parseInline`), aplicado ao texto de cada bloco: `` `código` `` → `<code>`, `**negrito**` → `<strong>` (recursivo, para permitir itálico dentro), `*itálico*` → `<em>`, `[[Wikilink]]` → chip clicável (resolve o id da nota pelo título; se não encontrar, renderiza sem link e com opacidade reduzida), `[texto](url)` → link estilizado.
+
+Para recriar num stack real: uma lib de markdown (remark/markdown-it/etc.) resolve o parsing padrão; a parte custom é o plugin de wikilink `[[Título]]` → resolver contra o índice de notas do cofre e renderizar como componente clicável.
+
+### Toolbar de formatação
+Dois padrões, aplicados sobre o `<textarea>` via `selectionStart`/`selectionEnd`:
+- **Envolver seleção** (negrito/itálico/código/link): insere `before + selecionado + after`, e a nova seleção cobre o texto original (permite reaplicar/desfazer visualmente).
+- **Prefixo de linha, com toggle** (H2/H3/lista/citação): localiza início/fim da linha do cursor, remove qualquer prefixo de bloco existente (`#`, `-`, `>`) e aplica o novo — clicar de novo no mesmo botão remove o prefixo (toggle).
+Depois de cada ação, o foco volta ao textarea com a seleção reposicionada (via `requestAnimationFrame`, pois o valor muda de forma assíncrona).
+
+### Vincular nota (popover)
+1. Ao clicar em "Vincular nota", salva a posição do cursor (`selectionStart/End`) antes de abrir o popover — importante porque o clique no botão tira o foco do textarea.
+2. Campo de busca filtra a lista de notas por título (case-insensitive, substring).
+3. Clicar num resultado insere `[[Título]]` exatamente na posição salva (não no fim do texto).
+4. Se a busca não corresponde a nenhum título existente, mostra a opção "Criar e vincular", que insere o wikilink mesmo sem a nota existir ainda (o parser trata wikilinks "quebrados" com opacidade reduzida até a nota ser criada).
+
+### Backlinks
+Calculados on-the-fly (não armazenados): para a nota ativa, percorre todas as outras notas e verifica se algum `[[Título]]` nelas corresponde ao título da nota ativa. Em produção isso deveria ser um índice invertido mantido ao salvar, não recalculado a cada render.
+
+### Kanban de tarefas
+- Cada tarefa tem `status` ∈ {todo, doing, review, done} e `dueState` ∈ {overdue, today, soon, normal, done} (cor do chip de prazo).
+- "Avançar" percorre a sequência fixa todo → doing → review → done.
+- Ao marcar como concluída (checkbox ou chegando em "done" pelo avançar), o prazo original é guardado em `prevDue`/`prevDueState` para poder restaurar se o usuário desmarcar.
+- Os 4 contadores do resumo (Atrasadas/Hoje/Semana/Entregues) são derivados por filtro simples sobre a lista de tarefas — não há campo separado para eles.
+
+### Progresso por projeto
+`pct = tarefas concluídas do projeto / total de tarefas do projeto`, arredondado. A barra de progresso é uma div com `width: pct+'%'`.
