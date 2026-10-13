@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SUPIMPA Second Brain</title>
+    <!-- PWA: cor de tema (barra do sistema) e ícones. O manifest e o registro do service
+         worker são injetados pelo vite-plugin-pwa no build. -->
+    <meta name="theme-color" content="#0055a1" />
+    <meta name="description" content="Cofre de notas Markdown com wikilinks, grafo, Kanban e MCP — offline-first." />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- Fontes auto-hospedadas via src/design/fonts.css (sem CDN — offline-first). -->
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; }
+      @keyframes sbpulse { 0%,100% { box-shadow: 0 0 0 0 rgba(22,163,74,.45); } 50% { box-shadow: 0 0 0 5px rgba(22,163,74,0); } }
+      @keyframes sbtoast { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+      @keyframes sbpop { from { opacity: 0; transform: translateY(-6px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+      textarea, input, button { font-family: inherit; }
+      .sb-scroll::-webkit-scrollbar { width: 9px; height: 9px; }
+      .sb-scroll::-webkit-scrollbar-thumb { background: #dde3ea; border-radius: 9px; border: 2px solid transparent; background-clip: padding-box; }
+      .sb-scroll::-webkit-scrollbar-track { background: transparent; }
+    </style>
+    <script type="module" crossorigin src="/assets/index-BX8ydKEI.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DPbK47pd.css">
+  <link rel="manifest" href="/manifest.webmanifest"></head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
