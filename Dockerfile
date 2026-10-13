@@ -18,4 +18,8 @@ RUN composer install --no-dev --prefer-dist --no-interaction --optimize-autoload
 COPY --from=frontend /build/dist/ ./public/
 COPY deploy/apache.conf /etc/apache2/sites-available/000-default.conf
 ENV APP_ENV=production APP_DEBUG=false LOG_CHANNEL=stderr
+COPY deploy/start.sh /usr/local/bin/start-second-brain
+RUN chmod +x /usr/local/bin/start-second-brain
+CMD ["/usr/local/bin/start-second-brain"]
 EXPOSE 80
+
